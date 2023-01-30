@@ -632,7 +632,7 @@ htmltools::browsable(
   tagList(
     tags$button(
       tagList(fontawesome::fa("download"), "Download as CSV"),
-      onclick = "Reactable.downloadDataCSV('cars-download-table', 'cars.csv')"
+      onclick = "Reactable.downloadDataCSV('unassigned-download-table', 'Unassigned Referrals Report.csv')"
     ),
 
     reactable(
@@ -650,7 +650,7 @@ htmltools::browsable(
     searchable = TRUE,
     
     groupBy = c("ReceivedBySite", "ReferredToDepartmentSpecialty", "ReceivedByDept"),
-    elementId = "cars-download-table",
+    elementId = "unassigned-download-table",
     
     columns = list(
     
