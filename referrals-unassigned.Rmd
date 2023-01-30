@@ -591,7 +591,7 @@ reactable(
     ),
  
     future_appts = colDef(
-      name = "Unassigned Referrals with Upcoming Appointments",
+      name = "Unassigned Referrals with Potential Upcoming Appointments",
       maxWidth = 100,
       headerStyle = list(background = "#00aeef", color = "white", fontWeight = "Bold", fontSize = "14px"),
       aggregate = "sum",
@@ -635,7 +635,7 @@ unassigned_output <- unassigned_referrals_future_appts %>%
 htmltools::browsable(
   tagList(
     tags$button(
-      tagList(fontawesome::fa("download"), "Download Data (Unassigned Referrals with Upcoming Appointments)"),
+      tagList(fontawesome::fa("download"), "Download Data (Unassigned Referrals with Potential Upcoming Appointments)"),
       onclick = "Reactable.downloadDataCSV('unassigned-download-table', 'Unassigned Referrals Data')"
     ),
 
