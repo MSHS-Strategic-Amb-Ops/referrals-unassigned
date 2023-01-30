@@ -324,8 +324,8 @@ conn1 <- dbPool(drv = odbc(), dsn = "OAO Cloud DB SoYoun", timeout = 30)
 # slot_raw_tbl <- tbl(conn1, "Y_DM_BOOKED_FILLED_RATE")
 access_raw_tbl <- tbl(conn1, "MV_DM_PATIENT_ACCESS")
 
-date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 23:59:59")
-# date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 00:00:00")
+# date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 23:59:59")
+date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 00:00:00")
 
 
 future_scheduling_raw <- access_raw_tbl %>%
