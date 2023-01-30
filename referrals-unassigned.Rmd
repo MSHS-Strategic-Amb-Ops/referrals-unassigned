@@ -398,7 +398,6 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 *Data Date Range: From 2022-04-01 to `r report_run_date - 1`*<br/>
 *Data Source: EPIC Caboodle Referrals Data and Clarity Scheduling Data*<br/>
 
-
 :::: {.blackbox data-latex=""}
 ::: {.center data-latex=""}
 <span style='font-size: 18px;; color: #d80b8c'>**Metric Definitions:**</span>
@@ -408,6 +407,8 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 <span style='font-size: 16px;'>-- **Unassigned Rate:** Total referrals with **no visits linked** over total referrals received</span>
 ::::
 
+
+## Referrals Summary
 ```{r Referrals Output, echo = FALSE, warning = FALSE, message = FALSE}
 
 referrals_summary_site <- referral_vol %>%
@@ -610,9 +611,10 @@ reactable(
   ) # Close Reactable
 
 ```
+<br/>
+<br/>
 
-
-
+## Unassigned Referrals
 ```{r Unassigned Output, echo = FALSE, warning = FALSE, message = FALSE}
 
 unassigned_output <- unassigned_referrals_future_appts %>%
@@ -631,8 +633,8 @@ unassigned_output <- unassigned_referrals_future_appts %>%
 htmltools::browsable(
   tagList(
     tags$button(
-      tagList(fontawesome::fa("download"), "Download as CSV"),
-      onclick = "Reactable.downloadDataCSV('unassigned-download-table', 'Unassigned Referrals Report.csv')"
+      tagList(fontawesome::fa("download"), "Download Data (Unassigned Referrals with Upcoming Appointments)"),
+      onclick = "Reactable.downloadDataCSV('unassigned-download-table', 'Unassigned Referrals Data')"
     ),
 
     reactable(
