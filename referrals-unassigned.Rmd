@@ -1,0 +1,730 @@
+---
+output:
+  html_document:
+    toc: yes
+    toc_depth: 6
+    toc_float:
+      collapsed: yes
+    fig_width: 7
+    fig_height: 6
+---
+
+
+<style type="text/css">
+div.main-container {
+  max-width: 2000px;
+  margin-left: auto;
+  margin-right: auto;
+}
+</style>
+<style>
+.tocify {
+color: black;
+}
+<!-- } -->
+<!-- .tocify .tocify-header { -->
+<!--     position: fixed; -->
+<!--     <!-- top: 50px; --> -->
+<!--     left: 50px; -->
+<!--     width: 350px; -->
+<!--     <!-- border: solid 3px black; --> -->
+<!--     <!-- height: 200px; --> -->
+<!--  border: none; -->
+<!-- } -->
+.tocify .tocify-header .active {
+color: white;
+background: #d80b8c;
+font-weight: bold;
+}
+<!-- .tocify .tocify-item { -->
+<!-- background: white; -->
+<!-- color: black; -->
+<!--  border: none; -->
+<!-- } -->
+</style>
+<style>
+  .nav-pills>li>a:hover, .nav-pills>li>a:focus, .nav-pills>li.active>a,     .nav-pills>li.active>a:hover, .nav-pills>li.active>a:focus{
+     background-color: #212070;
+     }
+</style>
+<style>
+.container { width: 1800px; }
+h2 {
+  background-color: #dddedd;
+  color: black;
+  text-indent: 20px;
+  <!-- font-weight: bold; -->
+}
+h3 {
+  background-color: #f2f2f2;
+  color: black;
+  text-indent: 20px;
+  <!-- font-weight: bold; -->
+}
+h4 {
+  <!-- background-color: #dddedd; -->
+  <!-- color: black; -->
+  text-indent: 50px;
+  <!-- font-weight: bold; -->
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+
+```{r Load Packages, echo = FALSE, warning = FALSE, message = FALSE}
+
+# # Load packages -----------------------------------------------------------------------------------
+suppressMessages({
+  memory.limit(size = 8000000)
+  library(readxl)
+  library(writexl)
+  library(plyr)
+  library(dplyr)
+  library(data.table)
+  library(zoo)
+  library(shiny)
+  library(shinydashboard)
+  library(shinydashboardPlus)
+  library(shinyWidgets)
+  library(htmlwidgets)
+  library(lubridate)
+  library(tcltk)
+  library(tidyverse)
+  library(plotly)
+  library(knitr)
+  library(kableExtra)
+  library(leaflet)
+  library(grid)
+  library(gridExtra)
+  library(eeptools)
+  library(ggQC)
+  library(zipcodeR)
+  library(utils)
+  library(scales)
+  library(chron)
+  library(bupaR)
+  library(shiny)
+  library(DT)
+  library(DiagrammeR)
+  library(shinyalert)
+  library(edeaR)
+  library(processmapR)
+  library(processmonitR)
+  library(processanimateR)
+  library(tidyr)
+  library(lubridate)
+  library(RColorBrewer)
+  library(DiagrammeR)
+  library(ggplot2)
+  library(leaflet)
+  library(readr)
+  library(highcharter)
+  library(ggforce) # for 'geom_arc_bar'
+  library(packcircles) # for packed circle graph
+  library(viridis)
+  library(ggiraph)
+  library(treemapify)
+  library(treemap)
+  library(broom)
+  library(extrafont)
+  library(tis) # for US holidays
+  library(vroom)
+  library(sjmisc)
+  library(tools)
+  library(here)
+  library(shinyBS)
+  library(shinyscreenshot)
+  library(fasttime)
+  library(shinycssloaders)
+  library(feather)
+  # library(zipcodeR)
+  library(formattable)
+  library(shinyjs)
+  library(janitor)
+  library(patchwork)
+  library(flexdashboard)
+  # library(tidyverse)
+  # library(viridis)
+  # library(hrbrthemes)
+  # library(plotly)
+  # install.packages("bsts")
+  library(bsts)
+  library(reactable)
+  # install.packages("reactablefmtr")
+  library(reactablefmtr)
+  library(svDialogs)
+  # library(openxlsx)
+  library(flextable)
+  library(officedown)
+  library(officer)
+  library(magrittr)
+  library(webshot) 
+  library(png)
+  library(ggh4x)
+  library(RODBC)
+  library(DBI)
+  library(odbc)
+  library(dbplyr)
+  library(pool)
+  library(emojifont)
+})
+
+
+```
+
+
+```{r Graph asthetics, echo = FALSE, warning = FALSE, message = FALSE}
+### Color Functions for Graphs ============================================================
+
+# Mount Sinai corporate colors "USE THIS TO ADD COLORS"
+MountSinai_colors <- c(
+  `dark purple`  = "#212070",
+  `dark pink`    = "#d80b8c",
+  `dark blue`    = "#00aeef",
+  `dark grey`    = "#7f7f7f",
+  `yellow`       = "#ffc000",
+  `purple`       = "#7030a0",
+  `med purple`   = "#5753d0",
+  `med pink`     = "#f75dbe",
+  `med blue`     = "#5cd3ff",
+  `med grey`     = "#a5a7a5",
+  `light purple` = "#c7c6ef",
+  `light pink`   = "#fcc9e9",
+  `light blue`   = "#c9f0ff",
+  `light grey`   = "#dddedd"
+  )
+
+# Function to extract Mount Sinai colors as hex codes
+# Use Character names of MountSinai_colors
+
+MountSinai_cols <- function(...) {
+  cols <- c(...)
+  
+  if (is.null(cols))
+    return (MountSinai_colors)
+  
+  MountSinai_colors[cols]
+}
+
+# Color Function that can be used to call all colors is "MountSinai_cols()"
+# Use in ggplot 
+
+  #MountSinai_cols()       # will provide all colors and their hex codes in a table 
+  #MountSinai_cols("pink") # will provide color name and the hex code for the pink color
+
+# Create palettes 
+MountSinai_palettes <- list(
+  `all`   = MountSinai_cols("dark purple","dark pink","dark blue","dark grey",
+                            "med purple","med pink","med blue","med grey", 
+                            "light purple","light pink","light blue","light grey"),
+  
+  `main`  = MountSinai_cols("dark purple","dark pink","dark blue","dark grey"),
+  
+  `purple`  = MountSinai_cols("dark purple","med purple","light purple"),
+  
+  `pink`  = MountSinai_cols("dark pink","med pink","light pink"),
+  
+  `blue`  = MountSinai_cols("dark blue", "med blue", "light blue"),
+  
+  `grey`  = MountSinai_cols("dark grey", "med grey", "light grey"),
+  
+  `purpleGrey` = MountSinai_cols("dark purple", "dark grey"),
+  
+  `pinkBlue` = MountSinai_cols("dark pink", "dark blue")
+  
+)
+
+# MountSinai_palettes
+# Return function to interpolate a Mount Sinai color palette
+# default value is the main palette, reverse = True will change the order
+
+MountSinai_pal <- function(palette = "all", reverse = FALSE, ...) {
+  pal <- MountSinai_palettes[[palette]]
+  
+  if (reverse) pal <- rev(pal)
+  
+  colorRampPalette(pal, ...)
+}
+
+
+
+# Scale Function for ggplot can be used instead of scale_color_manual
+scale_color_MountSinai <- function(palette = "all", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- MountSinai_pal(palette = palette, reverse = reverse)
+  
+  if (discrete) {
+    discrete_scale("colour", paste0("MountSinai_", palette), palette = pal, ...)
+  } else {
+    scale_color_gradientn(colours = pal(256), ...)
+  }
+}
+
+# Scale Fill for ggplot insetead of scale_fill_manual 
+scale_fill_MountSinai <- function(palette = "all", discrete = TRUE, reverse = FALSE, ...) {
+  pal <- MountSinai_pal(palette = palette, reverse = reverse)
+
+  if (discrete) {
+    discrete_scale("fill", paste0("MountSinai_", palette), palette = pal, ...)
+  } else {
+    scale_fill_gradientn(colours = pal(256), ...)
+  }
+}
+
+# Use in ggplot 
+  # scale_color_MountSinai("main")
+
+```
+
+
+```{r Global Functions, echo = FALSE, warning = FALSE, message = FALSE}
+
+'%!in%' <- function(x,y)!('%in%'(x,y)) # Does not include
+not_all_na <- function(x) all(!is.na(x)) # Exclude columns with All NAs
+
+```
+
+
+
+```{r Reporting Variables, echo = FALSE, warning = FALSE, message = FALSE}
+
+report_run_date <- Sys.Date()
+# report_run_date <- "2022-08-10"
+reporting_week <- floor_date(as.Date(report_run_date, "%Y-%m-%d")-7, unit="week", week_start = 7)
+reporting_week_prior <- floor_date(as.Date(report_run_date, "%Y-%m-%d")-14, unit="week", week_start = 7)
+reporting_week_next <- floor_date(as.Date(report_run_date, "%Y-%m-%d"), unit="week", week_start = 7)
+
+reporting_year <- format(as.Date(report_run_date), "%Y")
+reporting_month <- format(as.Date(report_run_date), "%b")
+reporting_monthNum <- format(as.Date(report_run_date), "%m")
+
+
+```
+
+
+```{r Import Referrals Data, echo = FALSE, warning = FALSE, message = FALSE}
+
+path <- "/nfs/data/Applications/Ambulatory/Data_Updated/"
+# saveRDS(referral_vol, paste0(path,"referral_vol.rds"))
+
+referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
+
+# referral_vol <- readRDS("referral_vol.rds")
+```
+
+
+```{r Import Future Scheduling Data, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Connection to Oracle DB ------------------------------------------------------
+conn1 <- dbPool(drv = odbc(), dsn = "OAO Cloud DB SoYoun", timeout = 30)
+
+# Import Slot Availability Data ------------------------------------------------
+# slot_raw_tbl <- tbl(conn1, "Y_DM_BOOKED_FILLED_RATE")
+access_raw_tbl <- tbl(conn1, "MV_DM_PATIENT_ACCESS")
+
+date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 23:59:59")
+# date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 00:00:00")
+
+
+future_scheduling_raw <- access_raw_tbl %>%
+  filter(TO_DATE(date_1,"YYYY-MM-DD HH24:MI:SS") < APPT_DTTM) %>%
+  group_by(SITE, DEPT_SPECIALTY_NAME, DEPARTMENT_NAME, DEPARTMENT_ID, MRN, PAT_NAME, PAT_ENC_CSN_ID, REFERRAL_ID, 
+           APPT_MADE_DTTM, APPT_DTTM, PRC_NAME, DERIVED_STATUS_DESC) %>%
+  summarise(total = n()) %>%
+  collect() 
+
+
+future_appts <- future_scheduling_raw %>%
+  filter(is.na(REFERRAL_ID)) %>%
+  filter(DERIVED_STATUS_DESC == "Scheduled") %>%
+  arrange(APPT_DTTM) %>%
+  arrange(MRN) %>%
+  group_by(MRN, DEPARTMENT_ID) %>%
+  mutate(appt_dept = seq_len(n())) %>%
+  ungroup() %>%
+  group_by(MRN, DEPT_SPECIALTY_NAME)%>%
+  mutate(appt_specialty = seq_len(n())) 
+
+```
+
+
+```{r Unassigned Referrals, echo = FALSE, warning = FALSE, message = FALSE}
+
+unassigned_referrals <- referral_vol %>%
+  filter(ApptStatusFinal == "Pending") %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
+  group_by(ReferralKey, ReferralEpicId, StartInstant, Patient_MRN, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
+  summarise(total = n()) %>%
+  dplyr::select(-total)
+
+
+unassigned_referrals_dept <- merge(unassigned_referrals, 
+              future_appts %>% filter(appt_dept == 1) %>% 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM), 
+              by.x = c("Patient_MRN", "ReceivedByDepID"),
+              by.y = c("MRN", "DEPARTMENT_ID"))
+
+unassigned_referrals_specialty <- merge(unassigned_referrals, 
+              future_appts %>% filter(appt_specialty == 1) %>% 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM), 
+              by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"),
+              by.y = c("MRN", "DEPT_SPECIALTY_NAME"))
+
+
+unassigned_referrals_merged <- bind_rows(unassigned_referrals_dept, unassigned_referrals_specialty)
+unassigned_referrals_merged <- unassigned_referrals_merged %>%
+  dplyr::select(-DEPT_SPECIALTY_NAME) %>%
+  dplyr::select(-DEPARTMENT_ID) %>%
+  distinct()
+
+unassigned_referrals_future_appts <- left_join(unassigned_referrals, unassigned_referrals_merged)
+unassigned_referrals_future_appts <- unassigned_referrals_future_appts %>%
+  mutate(type = case_when(!is.na(DEPARTMENT_NAME) & ReceivedByDept == DEPARTMENT_NAME ~ "Earliest scheduled in same department",
+                          !is.na(DEPARTMENT_NAME) ~ "Earliest scheduled in same specialty",
+                          TRUE ~ ""))
+```
+
+
+```{r Sinai Logo, echo=FALSE, out.width = '30%'}
+knitr::include_graphics("Mount_Sinai_Logo_H.png")
+```
+
+
+# Ambulatory Unassigned Referrals Report
+*Report Run Date: `r report_run_date`*<br/>
+*Data Date Range: From 2022-04-01 to `r report_run_date - 1`*<br/>
+*Data Source: EPIC Caboodle Referrals Data and Clarity Scheduling Data*<br/>
+
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+<span style='font-size: 18px;; color: #d80b8c'>**Metric Definitions:**</span>
+:::
+<span style='font-size: 16px;'>-- **Conversion Rate:** Total referrals with **scheduled visits** over total referrals received</span><br/>
+<span style='font-size: 16px;'>-- **Completion Rate:** Total referrals with **arrived visits** over total referrals received</span><br/>
+<span style='font-size: 16px;'>-- **Unassigned Rate:** Total referrals with **no visits linked** over total referrals received</span>
+::::
+
+```{r Referrals Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+referrals_summary_site <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ApptStatusFinal) %>%
+  summarise(total = n()) %>%
+  pivot_wider(names_from = ApptStatusFinal,
+              values_from = total,
+              values_fill = 0) %>%
+  adorn_totals("row", "Total") %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty) %>%
+  mutate(Total = sum(across(where(is.numeric)))) %>%
+  mutate(conversion_rate = round((Total - Pending)/Total ,2),
+         completion_rate = round(Arrived/Total, 2),
+         unassigned_perc = round(Pending/ Total,2))
+
+
+unassigned_referrals_future_appts_summary <- unassigned_referrals_merged %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ReferralKey) %>%
+  summarise(total = n()) %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty) %>%
+  summarise(future_appts = n())
+
+referrals_summary_site <- merge(referrals_summary_site, unassigned_referrals_future_appts_summary)
+  
+referrals_summary_site <- referrals_summary_site %>%
+  mutate(unassigned_appts_perc = round(future_appts/Pending,2)) 
+
+
+reactable(
+  referrals_summary_site %>%
+    dplyr::select(ReceivedBySite, ReferredToDepartmentSpecialty, Total, Arrived, Pending, 
+                  conversion_rate, completion_rate, unassigned_perc, future_appts),
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left", 
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  
+  groupBy = c("ReceivedBySite", "ReferredToDepartmentSpecialty"),
+  
+  
+  columns = list(
+    
+    ReceivedBySite = colDef(
+      # footer = "Total",
+      name = "Site",
+      minWidth = 180),
+    
+    ReferredToDepartmentSpecialty = colDef(
+      # footer = "Total",
+      name = "Specialty",
+      minWidth = 180),
+    
+    Total = colDef(
+      name = "Total Referrals Received",
+      maxWidth = 100,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = "sum",
+      # footer = JS("function(column, state) {
+      #   let total = 0
+      #   state.sortedData.forEach(function(row) {
+      #     total += row[column.id]
+      #   })
+      #   return total.toFixed(0)
+      # }"),
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    Arrived = colDef(
+      name = "Referrals with Completed Appointments",
+      maxWidth = 100,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = "sum",
+      # footer = JS("function(column, state) {
+      #   let total = 0
+      #   state.sortedData.forEach(function(row) {
+      #     total += row[column.id]
+      #   })
+      #   return total.toFixed(0).toLocaleString()
+      # }"),
+      format = colFormat(separators = TRUE, digits = 0)
+    ),
+    
+    Pending = colDef(
+      name = "Referrals Unassigned (No Visits Linked)",
+      maxWidth = 100,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = "sum",
+      # footer = JS("function(column, state) {
+      #   let total = 0
+      #   state.sortedData.forEach(function(row) {
+      #     total += row[column.id]
+      #   })
+      #   return total.toFixed(0)
+      # }"),
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderRight = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    conversion_rate = colDef(
+      name = "Conversion Rate",
+      maxWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      # Calculate the aggregate conversion rate as `(total-pending) / total`
+      aggregate = JS("function(values, rows) {
+        let totalPending = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal += row['Total']
+          totalPending += row['Pending']
+        })
+        return (totalTotal - totalPending) / totalTotal
+      }"),
+      style = JS("function(rowInfo) {
+        var value = rowInfo.row['conversion_rate']
+        if (value > 0.5) {
+          var color = '#008000'
+        } else if (value <= 0.5 ) {
+          var color = '#e00000'
+        } else {
+          var color = '#000000'
+        }
+        return { color: color, fontFamily: 'calibri', fontWeight: 'bold'}
+      }"),
+      format = colFormat(percent = TRUE, digits = 0)
+    ),
+    
+    completion_rate = colDef(
+      name = "Completion Rate",
+      maxWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      # Calculate the aggregate conversion rate as `(total-pending) / total`
+      aggregate = JS("function(values, rows) {
+        let totalArrived = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal += row['Total']
+          totalArrived += row['Arrived']
+        })
+        return totalArrived / totalTotal
+      }"),
+      style = JS("function(rowInfo) {
+        var value = rowInfo.row['completion_rate']
+        if (value > 0.5) {
+          var color = '#008000'
+        } else if (value <= 0.5 ) {
+          var color = '#e00000'
+        } else {
+          var color = '#000000'
+        }
+        return { color: color, fontFamily: 'calibri', fontWeight: 'bold'}
+      }"),
+      format = colFormat(percent = TRUE, digits = 0)
+    ),
+    
+    unassigned_perc = colDef(
+      name = "Unassigned Rate",
+      maxWidth = 100,
+      headerStyle = list(background = "#00aeef", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      # Calculate the aggregate conversion rate as `(total-pending) / total`
+      aggregate = JS("function(values, rows) {
+        let totalPending = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal += row['Total']
+          totalPending += row['Pending']
+        })
+        return (totalPending) / totalTotal
+      }"),
+      format = colFormat(percent = TRUE, digits = 0),
+      style = list(fontWeight = "bold", background = "#c9f0ff")
+    ),
+ 
+    future_appts = colDef(
+      name = "Unassigned Referrals with Upcoming Appointments",
+      maxWidth = 100,
+      headerStyle = list(background = "#00aeef", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = "sum",
+      # footer = JS("function(column, state) {
+      #   let total = 0
+      #   state.sortedData.forEach(function(row) {
+      #     total += row[column.id]
+      #   })
+      #   return total.toFixed(0)
+      # }"),
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)", fontWeight = "bold", background = "#c9f0ff")
+    )
+    
+  ) # Close Columns
+  
+  ) # Close Reactable
+
+```
+
+
+
+```{r Unassigned Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+unassigned_output <- unassigned_referrals_future_appts %>%
+    filter(type != "") %>%
+    dplyr::select(ReferralEpicId, Patient_MRN, StartInstant, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept,
+                  type, DEPARTMENT_NAME, APPT_DTTM) %>%
+    arrange(desc(APPT_DTTM)) %>%
+    arrange(ReferralEpicId, Patient_MRN) %>%
+    rename(ScheduledDept = DEPARTMENT_NAME,
+           AppointmentDateTime = APPT_DTTM) %>%
+    mutate(AppointmentDateTime = as.character(AppointmentDateTime)) %>%
+  dplyr::select(-ReferralKey)
+
+
+
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download as CSV"),
+      onclick = "Reactable.downloadDataCSV('cars-download-table', 'cars.csv')"
+    ),
+
+    reactable(
+      unassigned_output,
+      style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left", 
+                           headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+    searchable = TRUE,
+    
+    groupBy = c("ReceivedBySite", "ReferredToDepartmentSpecialty", "ReceivedByDept"),
+    elementId = "cars-download-table",
+    
+    columns = list(
+    
+    ReceivedBySite = colDef(
+      # footer = "Total",
+      name = "Site",
+      minWidth = 180),
+    
+    ReferredToDepartmentSpecialty = colDef(
+      # footer = "Total",
+      name = "Specialty",
+      minWidth = 180),
+    
+    ReceivedByDept = colDef(
+      # footer = "Total",
+      name = "Department",
+      minWidth = 180),
+    
+    Patient_MRN = colDef(
+      # footer = "Total",
+      name = "Patient MRN"),
+    
+    StartInstatnt = colDef(
+      # footer = "Total",
+      name = "Referral Created Date"),
+    
+    type = colDef(
+      # footer = "Total",
+      name = "Upcoming Appt Dept vs. Specialty",
+      minWidth = 180)
+    
+    )
+    
+#     columns = list(
+#   AppointmentDateTime = colDef(format = colFormat(datetime = TRUE))
+#   # date = colDef(format = colFormat(date = TRUE)),
+#   # time = colDef(format = colFormat(time = TRUE)),
+#   # time_24h = colDef(format = colFormat(time = TRUE, hour12 = FALSE)),
+#   # datetime_pt_BR = colDef(format = colFormat(datetime = TRUE, locales = "pt-BR"))
+# )
+
+    )
+  )
+)
+
+
+# datatable(
+#   unassigned_referrals_future_appts %>%
+#     filter(type != "") %>%
+#     dplyr::select(ReferralEpicId, Patient_MRN, StartInstant, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept,
+#                   type, DEPARTMENT_NAME, APPT_DTTM) %>%
+#     arrange(desc(APPT_DTTM)) %>%
+#     arrange(ReferralEpicId, Patient_MRN) %>%
+#     rename(ScheduledDept = DEPARTMENT_NAME,
+#            AppointmentDateTime = APPT_DTTM) %>%
+#     mutate(AppointmentDateTime = as.character(AppointmentDateTime))
+#     ,
+#   extensions = 'Buttons', options = list(
+#     dom = 'Bfrtip',
+#     buttons = 
+#       list('copy', 'print', list(
+#         extend = 'collection',
+#         buttons = c('csv', 'excel', 'pdf'),
+#         text = 'Download'
+#       )),
+#     initComplete = JS(
+#     "function(settings, json) {",
+#     "$('body').css({'font-family': 'Calibri'});",
+#     "}"
+#   )
+#     
+#   )
+# ) %>%
+#   formatDate(10, "toLocaleString")
+
+```
+
