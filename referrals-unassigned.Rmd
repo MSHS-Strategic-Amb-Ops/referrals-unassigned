@@ -626,7 +626,9 @@ unassigned_output <- unassigned_referrals_future_appts %>%
     rename(ScheduledDept = DEPARTMENT_NAME,
            AppointmentDateTime = APPT_DTTM) %>%
     mutate(AppointmentDateTime = as.character(AppointmentDateTime)) %>%
-  dplyr::select(-ReferralKey)
+  dplyr::select(-ReferralKey) %>%
+  rename(`Referral Created Date` = StartInstant,
+         `Upcoming Appt Dept vs. Specialty` = type)
 
 
 
@@ -675,13 +677,8 @@ htmltools::browsable(
       # footer = "Total",
       name = "Patient MRN"),
     
-    StartInstatnt = colDef(
-      # footer = "Total",
-      name = "Referral Created Date"),
-    
     type = colDef(
       # footer = "Total",
-      name = "Upcoming Appt Dept vs. Specialty",
       minWidth = 180)
     
     )
