@@ -355,6 +355,7 @@ future_appts <- future_scheduling_raw %>%
 unassigned_referrals <- referral_vol %>%
   filter(ApptStatusFinal == "Pending") %>%
   filter(ReceivedByDept != "*Unspecified") %>%
+  filter(ExpirationInstant > report_run_date) %>%
   filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
   group_by(ReferralKey, ReferralEpicId, StartInstant, Patient_MRN, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
   summarise(total = n()) %>%
@@ -426,6 +427,24 @@ referrals_summary_site <- referral_vol %>%
          completion_rate = round(Arrived/Total, 2),
          unassigned_perc = round(Pending/ Total,2))
 
+expired_summary_site <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
+  filter(ExpirationInstant < report_run_date) %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ApptStatusFinal) %>%
+  summarise(total = n()) %>%
+  pivot_wider(names_from = ApptStatusFinal,
+              values_from = total,
+              values_fill = 0) %>%
+  adorn_totals("row", "Total") %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty) %>%
+  mutate(Total = sum(across(where(is.numeric)))) %>%
+  dplyr::select(ReceivedBySite, ReferredToDepartmentSpecialty, Pending) %>%
+  rename(expired_unassigned = Pending)
+
+referrals_summary_site <- left_join(referrals_summary_site, expired_summary_site)
+referrals_summary_site <- referrals_summary_site %>%
+  mutate(expired_unassigned_perc = round(expired_unassigned/Total,2))
 
 unassigned_referrals_future_appts_summary <- unassigned_referrals_merged %>%
   group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ReferralKey) %>%
@@ -442,7 +461,7 @@ referrals_summary_site <- referrals_summary_site %>%
 reactable(
   referrals_summary_site %>%
     dplyr::select(ReceivedBySite, ReferredToDepartmentSpecialty, Total, Arrived, Pending, 
-                  conversion_rate, completion_rate, unassigned_perc, future_appts),
+                  conversion_rate, completion_rate, expired_unassigned, expired_unassigned_perc, future_appts),
   style = list(fontFamily = 'Calibri',
                  fontSize = '14px'),
     defaultColDef = colDef(align = "left", 
@@ -471,7 +490,7 @@ reactable(
     
     Total = colDef(
       name = "Total Referrals Received",
-      maxWidth = 100,
+      minWidth = 100,
       headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
       aggregate = "sum",
       # footer = JS("function(column, state) {
@@ -485,40 +504,40 @@ reactable(
       style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
     ),
     
-    Arrived = colDef(
-      name = "Referrals with Completed Appointments",
-      maxWidth = 100,
-      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
-      aggregate = "sum",
-      # footer = JS("function(column, state) {
-      #   let total = 0
-      #   state.sortedData.forEach(function(row) {
-      #     total += row[column.id]
-      #   })
-      #   return total.toFixed(0).toLocaleString()
-      # }"),
-      format = colFormat(separators = TRUE, digits = 0)
-    ),
-    
-    Pending = colDef(
-      name = "Referrals Unassigned (No Visits Linked)",
-      maxWidth = 100,
-      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
-      aggregate = "sum",
-      # footer = JS("function(column, state) {
-      #   let total = 0
-      #   state.sortedData.forEach(function(row) {
-      #     total += row[column.id]
-      #   })
-      #   return total.toFixed(0)
-      # }"),
-      format = colFormat(separators = TRUE, digits = 0),
-      style = list(borderRight = "1.5px solid rgb(230, 230, 230)")
-    ),
+    # Arrived = colDef(
+    #   name = "Referrals with Completed Appointments",
+    #   maxWidth = 100,
+    #   headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+    #   aggregate = "sum",
+    #   # footer = JS("function(column, state) {
+    #   #   let total = 0
+    #   #   state.sortedData.forEach(function(row) {
+    #   #     total += row[column.id]
+    #   #   })
+    #   #   return total.toFixed(0).toLocaleString()
+    #   # }"),
+    #   format = colFormat(separators = TRUE, digits = 0)
+    # ),
+    # 
+    # Pending = colDef(
+    #   name = "Referrals Unassigned (No Visits Linked)",
+    #   maxWidth = 100,
+    #   headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+    #   aggregate = "sum",
+    #   # footer = JS("function(column, state) {
+    #   #   let total = 0
+    #   #   state.sortedData.forEach(function(row) {
+    #   #     total += row[column.id]
+    #   #   })
+    #   #   return total.toFixed(0)
+    #   # }"),
+    #   format = colFormat(separators = TRUE, digits = 0),
+    #   style = list(borderRight = "1.5px solid rgb(230, 230, 230)")
+    # ),
     
     conversion_rate = colDef(
       name = "Conversion Rate",
-      maxWidth = 100,
+      minWidth = 100,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       # Calculate the aggregate conversion rate as `(total-pending) / total`
       aggregate = JS("function(values, rows) {
@@ -546,7 +565,7 @@ reactable(
     
     completion_rate = colDef(
       name = "Completion Rate",
-      maxWidth = 100,
+      minWidth = 100,
       headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       # Calculate the aggregate conversion rate as `(total-pending) / total`
       aggregate = JS("function(values, rows) {
@@ -572,27 +591,38 @@ reactable(
       format = colFormat(percent = TRUE, digits = 0)
     ),
     
-    unassigned_perc = colDef(
-      name = "Unassigned Rate",
-      maxWidth = 100,
-      headerStyle = list(background = "#00aeef", color = "white", fontWeight = "Bold", fontSize = "14px"),
+    expired_unassigned_perc = colDef(
+      name = "Expired Referrals Unassigned Rate",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
       # Calculate the aggregate conversion rate as `(total-pending) / total`
       aggregate = JS("function(values, rows) {
-        let totalPending = 0
+        let totalExpiredUnassigned = 0
         let totalTotal = 0
         rows.forEach(function(row) {
           totalTotal += row['Total']
-          totalPending += row['Pending']
+          totalExpiredUnassigned += row['expired_unassigned']
         })
-        return (totalPending) / totalTotal
+        return totalExpiredUnassigned / totalTotal
       }"),
-      format = colFormat(percent = TRUE, digits = 0),
-      style = list(fontWeight = "bold", background = "#c9f0ff")
+      # style = JS("function(rowInfo) {
+      #   var value = rowInfo.row['completion_rate']
+      #   if (value > 0.5) {
+      #     var color = '#008000'
+      #   } else if (value <= 0.5 ) {
+      #     var color = '#e00000'
+      #   } else {
+      #     var color = '#000000'
+      #   }
+      #   return { color: color, fontFamily: 'calibri', fontWeight: 'bold'}
+      # }"),
+      style = list(color = "#e00000", fontWeight = "bold"),
+      format = colFormat(percent = TRUE, digits = 0)
     ),
  
     future_appts = colDef(
-      name = "Unassigned Referrals with Potential Upcoming Appointments",
-      maxWidth = 100,
+      name = "Active Unassigned Referrals with Potential Upcoming Appointments",
+      minWidth = 100,
       headerStyle = list(background = "#00aeef", color = "white", fontWeight = "Bold", fontSize = "14px"),
       aggregate = "sum",
       # footer = JS("function(column, state) {
@@ -604,6 +634,18 @@ reactable(
       # }"),
       format = colFormat(separators = TRUE, digits = 0),
       style = list(borderLeft = "1.5px solid rgb(230, 230, 230)", fontWeight = "bold", background = "#c9f0ff")
+    ),
+    
+    Arrived = colDef(
+      show = F
+    ),
+    
+    Pending = colDef(
+      show = F
+    ),
+    
+    expired_unassigned = colDef(
+      show = F
     )
     
   ) # Close Columns
