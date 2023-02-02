@@ -502,7 +502,7 @@ reactable(
       #   return total.toFixed(0)
       # }"),
       format = colFormat(separators = TRUE, digits = 0),
-      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)")
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)", borderRight = "1.5px solid rgb(230, 230, 230)")
     ),
     
     # Arrived = colDef(
