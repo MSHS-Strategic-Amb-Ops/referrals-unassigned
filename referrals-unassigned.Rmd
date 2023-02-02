@@ -405,7 +405,8 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 :::
 <span style='font-size: 16px;'>-- **Conversion Rate:** Total referrals with **scheduled visits** over total referrals received</span><br/>
 <span style='font-size: 16px;'>-- **Completion Rate:** Total referrals with **arrived visits** over total referrals received</span><br/>
-<span style='font-size: 16px;'>-- **Unassigned Rate:** Total referrals with **no visits linked** over total referrals received</span>
+<span style='font-size: 16px;'>-- **Expired Unassigned Rate:** Total referrals expired with **no visits linked** over total referrals received</span><br/>
+<span style='font-size: 16px;'>-- **Unassigned Referrals:** Total referrals with **no visits linked** over total referrals received</span>
 ::::
 
 
