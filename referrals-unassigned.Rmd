@@ -311,7 +311,8 @@ path <- "/nfs/data/Applications/Ambulatory/Data_Updated/"
 
 referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
 
-# referral_vol <- readRDS("referral_vol.rds")
+# referral_vol <- readRDS("referral_vol (1).rds")
+
 ```
 
 
@@ -458,6 +459,7 @@ referrals_summary_site <- merge(referrals_summary_site, unassigned_referrals_fut
 referrals_summary_site <- referrals_summary_site %>%
   mutate(unassigned_appts_perc = round(future_appts/Pending,2)) 
 
+referrals_summary_site[is.na(referrals_summary_site)] <- 0
 
 reactable(
   referrals_summary_site %>%
@@ -683,7 +685,8 @@ htmltools::browsable(
     ),
 
     reactable(
-      unassigned_output,
+      unassigned_output %>%
+        arrange(ReceivedBySite, ReferredToDepartmentSpecialty),
       style = list(fontFamily = 'Calibri',
                  fontSize = '14px'),
     defaultColDef = colDef(align = "left", 
