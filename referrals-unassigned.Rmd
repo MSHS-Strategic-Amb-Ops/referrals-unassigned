@@ -7,22 +7,16 @@ output:
       collapsed: yes
     fig_width: 7
     fig_height: 6
-resource_files:
-- Logo/Mount_Sinai_Logo_H.png
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
-```
 
 <style type="text/css">
 div.main-container {
-  max-width: 2000px;
-  margin-left: 0;
+  max-width: 1700px;
+  margin-left: auto;
   margin-right: auto;
 }
 </style>
-
 <style>
 .tocify {
 color: black;
@@ -48,14 +42,11 @@ font-weight: bold;
 <!--  border: none; -->
 <!-- } -->
 </style>
-
-
 <style>
   .nav-pills>li>a:hover, .nav-pills>li>a:focus, .nav-pills>li.active>a,     .nav-pills>li.active>a:hover, .nav-pills>li.active>a:focus{
      background-color: #212070;
      }
 </style>
-
 <style>
 .container { width: 1800px; }
 h2 {
@@ -78,38 +69,14 @@ h4 {
 }
 </style>
 
-<style>
-.blackbox {
-  padding: 1em;
-  background: white;
-  color: black;
-  border: 2px solid #7f7f7f;
-  width: 100%;
-  position: center;
-  align: center;
-  margin: 0px auto;
-}
-.center {
-  text-align: left;
-  margin: 0px auto;
-}
-</style>
-
-
-<!-- ```{css toc-content, echo = FALSE} -->
-<!-- #TOC { -->
-<!--   right: 270px; -->
-<!--   margin: 20px 0px 25px 0px; -->
-<!-- } -->
-
-<!-- .main-container { -->
-<!--     margin-left: 200px; -->
-<!-- } -->
-<!-- ``` -->
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
 
 
 ```{r Load Packages, echo = FALSE, warning = FALSE, message = FALSE}
-# Load packages -----------------------------------------------------------------------------------
+
+# # Load packages -----------------------------------------------------------------------------------
 suppressMessages({
   memory.limit(size = 8000000)
   library(readxl)
@@ -134,7 +101,7 @@ suppressMessages({
   library(gridExtra)
   library(eeptools)
   library(ggQC)
-  #library(zipcode)
+  library(zipcodeR)
   library(utils)
   library(scales)
   library(chron)
@@ -178,15 +145,40 @@ suppressMessages({
   library(shinyjs)
   library(janitor)
   library(patchwork)
-  library(nloptr)
+  library(flexdashboard)
+  # library(tidyverse)
+  # library(viridis)
+  # library(hrbrthemes)
+  # library(plotly)
+  # install.packages("bsts")
+  library(bsts)
   library(reactable)
-  library(sparkline)
+  # install.packages("reactablefmtr")
+  library(reactablefmtr)
+  library(svDialogs)
+  # library(openxlsx)
+  library(flextable)
+  library(officedown)
+  library(officer)
+  library(magrittr)
+  library(webshot) 
+  library(png)
+  library(ggh4x)
+  library(RODBC)
+  library(DBI)
+  library(odbc)
+  library(dbplyr)
+  library(pool)
+  library(emojifont)
 })
+
+
 ```
 
 
 ```{r Graph asthetics, echo = FALSE, warning = FALSE, message = FALSE}
 ### Color Functions for Graphs ============================================================
+
 # Mount Sinai corporate colors "USE THIS TO ADD COLORS"
 MountSinai_colors <- c(
   `dark purple`  = "#212070",
@@ -204,8 +196,10 @@ MountSinai_colors <- c(
   `light blue`   = "#c9f0ff",
   `light grey`   = "#dddedd"
   )
+
 # Function to extract Mount Sinai colors as hex codes
 # Use Character names of MountSinai_colors
+
 MountSinai_cols <- function(...) {
   cols <- c(...)
   
@@ -214,10 +208,13 @@ MountSinai_cols <- function(...) {
   
   MountSinai_colors[cols]
 }
+
 # Color Function that can be used to call all colors is "MountSinai_cols()"
 # Use in ggplot 
+
   #MountSinai_cols()       # will provide all colors and their hex codes in a table 
   #MountSinai_cols("pink") # will provide color name and the hex code for the pink color
+
 # Create palettes 
 MountSinai_palettes <- list(
   `all`   = MountSinai_cols("dark purple","dark pink","dark blue","dark grey",
@@ -239,9 +236,11 @@ MountSinai_palettes <- list(
   `pinkBlue` = MountSinai_cols("dark pink", "dark blue")
   
 )
+
 # MountSinai_palettes
 # Return function to interpolate a Mount Sinai color palette
 # default value is the main palette, reverse = True will change the order
+
 MountSinai_pal <- function(palette = "all", reverse = FALSE, ...) {
   pal <- MountSinai_palettes[[palette]]
   
@@ -249,6 +248,9 @@ MountSinai_pal <- function(palette = "all", reverse = FALSE, ...) {
   
   colorRampPalette(pal, ...)
 }
+
+
+
 # Scale Function for ggplot can be used instead of scale_color_manual
 scale_color_MountSinai <- function(palette = "all", discrete = TRUE, reverse = FALSE, ...) {
   pal <- MountSinai_pal(palette = palette, reverse = reverse)
@@ -259,376 +261,162 @@ scale_color_MountSinai <- function(palette = "all", discrete = TRUE, reverse = F
     scale_color_gradientn(colours = pal(256), ...)
   }
 }
+
 # Scale Fill for ggplot insetead of scale_fill_manual 
 scale_fill_MountSinai <- function(palette = "all", discrete = TRUE, reverse = FALSE, ...) {
   pal <- MountSinai_pal(palette = palette, reverse = reverse)
+
   if (discrete) {
     discrete_scale("fill", paste0("MountSinai_", palette), palette = pal, ...)
   } else {
     scale_fill_gradientn(colours = pal(256), ...)
   }
 }
+
 # Use in ggplot 
   # scale_color_MountSinai("main")
+
 ```
 
 
-```{r Import Data, echo = FALSE, warning = FALSE, message = FALSE}
-'%!in%' <- function(x,y)!('%in%'(x,y))
-# scheduling_data_raw <- readRDS("/SharedDrive/deans/Presidents/SixSigma/Individual Folders/Current Employees/Engineers/So Youn Kweon/server-upload/historical_data.rds") %>%
-#   # filter(!is.na(Campus)) %>%
-#   # filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDD")) %>%
-#   filter(Appt.Status == "Arrived")%>%
-#   filter(Appt.DateYear >= as.Date("2022-01-01", format="%Y-%m-%d") & Appt.DateYear <= as.Date(max(Appt.Made.DTTM), format="%Y-%m-%d"))
-# 
-# require(openxlsx)
-# write.xlsx(scheduling_data_raw, "/SharedDrive/deans/Presidents/SixSigma/Individual Folders/Current Employees/Engineers/So Youn Kweon/server-upload/scheduling_data_Dec22.xlsx")
-scheduling_data_raw <- readRDS("/nfs/data/Applications/Ambulatory/Data_Updated/historical_data.rds") %>%
-  mutate(Campus = ifelse(Campus == "MSDD", "MSDMG", Campus)) %>%
-  filter(!is.na(Campus)) %>%
-  filter(Campus %in% c("NETWORK","MSM","MSH-MSDFP","ONCOLOGY","MSW","MSBI","MSUS","MSH- AMBULATORY CARE","MSDMG")) %>%
-  filter(Appt.Status == "Arrived")%>%
-  filter(Appt.DateYear >= as.Date("2022-01-01", format="%Y-%m-%d") & Appt.DateYear <= as.Date(max(Appt.Made.DTTM), format="%Y-%m-%d"))
-# rad_onc_data_raw <- read.csv("Rad_Onc_Data.csv")
-rad_onc_data_raw <- read.csv("/nfs/data/Applications/Ambulatory/Rad_Onc_Data.csv")
-radiology_data_raw <- read.csv("/nfs/data/Applications/Ambulatory/Radiology_Data.csv")
-radiology_ref <- read.csv("/nfs/data/Applications/Ambulatory/Radiology_Site_Mapping.csv")
-# rad_onc_data_raw <- read.csv("/SharedDrive/deans/Presidents/SixSigma/Individual Folders/Current Employees/Engineers/So Youn Kweon/server-upload/Rad_Onc_Data.csv")
-# radiology_data_raw <- read.csv("/SharedDrive/deans/Presidents/SixSigma/Individual Folders/Current Employees/Engineers/So Youn Kweon/server-upload/Radiology_Data.csv")
-# radiology_ref <- read.csv("/SharedDrive/deans/Presidents/SixSigma/Individual Folders/Current Employees/Engineers/So Youn Kweon/server-upload/Radiology_Site_Mapping.csv")
+```{r Global Functions, echo = FALSE, warning = FALSE, message = FALSE}
+
+'%!in%' <- function(x,y)!('%in%'(x,y)) # Does not include
+not_all_na <- function(x) all(!is.na(x)) # Exclude columns with All NAs
+
 ```
 
 
-```{r 2019 Past Year Volume Reference, echo = FALSE, warning = FALSE, message = FALSE}
-# In Person + Telehealth (Includes Radiology and Rad Onc) - Based on Exeutive Dashboard Tableau Workbook
-avg_2019_ref <- data.frame(
-  Campus = c("MSHS", "MSBI", "MSDMG", "MSH- AMBULATORY CARE", "MSH-MSDFP",
-             "MSHP", "MSM", "MSUS", "MSW", "NETWORK", "ONCOLOGY"),
-  avg_2019 = c(416628, 15634, 25121, 37702, 118317,
-             1334, 28211, 36684, 40224, 76345, 31823)
-)
-```
 
+```{r Reporting Variables, echo = FALSE, warning = FALSE, message = FALSE}
 
-```{r Set Variables, echo = FALSE, warning = FALSE, message = FALSE}
-library(lubridate)
-weekNum_sunday <- scheduling_data_raw %>%
-  filter(Appt.Day == "Sun") %>%
-  mutate(Appt.WeekNum = lubridate::epiweek(Appt.DateYear)) %>%
-  dplyr::select(Appt.Year, Appt.WeekNum, Appt.Day, Appt.DateYear) %>%
-  distinct() %>%
-  arrange(Appt.DateYear) %>%
-  rename(Appt.Week = Appt.DateYear)
-# weekNum_sunday <- head(weekNum_sunday,-1)
-# Set up crosswalk for Week Number and Week Starting Date (Monday)
-# weekNum_monday <- scheduling_data_raw %>% 
-#   filter(Appt.Day == "Mon") %>%
-#   mutate(Appt.WeekNum = as.numeric(strftime(Appt.DateYear, format = "%V"))) %>%
-#   select(Appt.Year, Appt.WeekNum, Appt.Day, Appt.DateYear) %>%
-#   distinct() %>%
-#   arrange(Appt.DateYear) 
-# weekNum_monday <- tail(weekNum_monday, 58)
-# Set Variables
 report_run_date <- Sys.Date()
-todays_date <- (tail(weekNum_sunday,1))$Appt.Week
-todays_year <- strftime(todays_date, format = "%Y")
-todays_month <- strftime(todays_date, format = "%B")
-todays_week <- (tail(weekNum_sunday,1))$Appt.Week
-past_4_wks <- tail(weekNum_sunday, 4)
-past_5_wks <- tail(weekNum_sunday, 5)
-# past_5_wks <- head(past_5_wks, 5)
-past_year <- weekNum_sunday %>%
-  filter(Appt.WeekNum %in% unique(past_5_wks$Appt.WeekNum))
-reporting_week <- paste0("from Sunday, ",todays_date, " to Saturday, ",todays_date+6)
+# report_run_date <- "2022-08-10"
+reporting_week <- floor_date(as.Date(report_run_date, "%Y-%m-%d")-7, unit="week", week_start = 7)
+reporting_week_prior <- floor_date(as.Date(report_run_date, "%Y-%m-%d")-14, unit="week", week_start = 7)
+reporting_week_next <- floor_date(as.Date(report_run_date, "%Y-%m-%d"), unit="week", week_start = 7)
+
+reporting_year <- format(as.Date(report_run_date), "%Y")
+reporting_month <- format(as.Date(report_run_date), "%b")
+reporting_monthNum <- format(as.Date(report_run_date), "%m")
+
+
 ```
 
 
-```{r Data Processing, echo = FALSE, warning = FALSE, message = FALSE}
-# Scheduling Data (Epic)
-scheduling_data <- scheduling_data_raw %>%
-  mutate(Appt.WeekNum = lubridate::epiweek(Appt.DateYear),
-         Appt.Week = floor_date(as.Date(Appt.DateYear, "%Y-%m-%d"), unit="week", week_start = 7),
-         Visit.Method  = case_when(Visit.Method == "IN PERSON" ~ 'IN PERSON'
-                                   ,TRUE ~ 'TELEHEALTH'))
-rm(scheduling_data_raw)
-scheduling_data <- merge(scheduling_data, weekNum_sunday[,c("Appt.Year","Appt.WeekNum","Appt.Week")])
-# Radiology + Rad Onc Data
-rad_onc_data_raw <- rad_onc_data_raw %>%
-  mutate_at(c('MSBI', 'MSH.MSDFP', 'MSUS', 'MSW'), as.numeric) %>%
-  mutate(Campus.Specialty = "Radiation Oncology",
-         Department = "Radiation Oncology",
-         Appt.Year = format(as.Date(as.yearmon(Month, "%b-%y"), format = "%b %y"),"%Y"),
-         Appt.MonNum = as.numeric(format(as.Date(as.yearmon(Month, "%b-%y"), format = "%b %y"),"%m")),
-         Appt.Month = format(as.Date(as.yearmon(Month, "%b-%y"), format = "%b %y"),"%B"),
-         Visit.Method = "IN PERSON") %>%
-  dplyr::select(-Month) %>%
-  pivot_longer(MSBI:MSW,
-               names_to = "Campus",
-               values_to = "monthly_vol") %>%
-  mutate(Campus = ifelse(Campus == "MSH.MSDFP","MSH-MSDFP",Campus)) %>%
-  arrange(Appt.Year, Appt.MonNum)
-# Process Radiology Data
-radiology_data_raw[,2:length(radiology_data_raw)] <-lapply(radiology_data_raw[,2:length(radiology_data_raw)],as.numeric)
-radiology_data_raw <- radiology_data_raw %>%
-  pivot_longer(BC:UC,
-               names_to = "Campus",
-               values_to = "monthly_vol")
-radiology_data_raw$Campus <- radiology_ref$Campus[match(radiology_data_raw$Campus, radiology_ref$ID)]
-radiology_data_raw <- radiology_data_raw %>%
-  group_by(Month, Campus) %>%
-  summarise(monthly_vol = sum(monthly_vol)) %>%
-  mutate(Campus.Specialty = "Radiology",
-         Department = "Radiology",
-         Appt.Year = format(as.Date(as.yearmon(Month, "%b-%y"), format = "%b %y"),"%Y"),
-         Appt.MonNum = as.numeric(format(as.Date(as.yearmon(Month, "%b-%y"), format = "%b %y"),"%m")),
-         Appt.Month = format(as.Date(as.yearmon(Month, "%b-%y"), format = "%b %y"),"%B"),
-         Visit.Method = "IN PERSON") %>%
-  dplyr::select(-Month) %>%
-  arrange(Appt.Year, Appt.MonNum)
-rad_radOnc_data <- bind_rows(rad_onc_data_raw, radiology_data_raw)
-rad_radOnc_data <- rad_radOnc_data %>%
-  mutate(Campus = toupper(Campus)) %>%
-  filter(Campus %!in% c("OTHER", "MSQ", "MS NOW", "NYEE")) 
-rad_onc_date <- paste0(rad_onc_data_raw[nrow(rad_onc_data_raw),"Appt.Month"],", ", rad_onc_data_raw[nrow(rad_onc_data_raw),"Appt.Year"])
-radiology_date <- paste0(radiology_data_raw[nrow(radiology_data_raw),"Appt.Month"],", ", radiology_data_raw[nrow(radiology_data_raw),"Appt.Year"])
-# scheduling_data <- scheduling_data %>%
-#   filter(Appt.DateYear <= "2023-03-29") 
+```{r Import Referrals Data, echo = FALSE, warning = FALSE, message = FALSE}
+
+path <- "/nfs/data/Applications/Ambulatory/Data_Updated/"
+# saveRDS(referral_vol, paste0(path,"referral_vol.rds"))
+
+referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
+
+# referral_vol <- readRDS("referral_vol (1).rds")
+
 ```
 
 
-```{r Variables, echo = FALSE, warning = FALSE, message = FALSE}
-full_month <- format((lubridate::floor_date(max(scheduling_data$Appt.DateYear), unit = "month")-1), "%B")
-full_year <- format((lubridate::floor_date(max(scheduling_data$Appt.DateYear), unit = "month")-1), "%Y")
-last_year <- as.numeric(full_year)-1
-current_month <- format((lubridate::floor_date(max(scheduling_data$Appt.DateYear), unit = "month")), "%B")
-visits_end_date <- max(scheduling_data$Appt.DateYear)
+```{r Import Future Scheduling Data, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Connection to Oracle DB ------------------------------------------------------
+conn1 <- dbPool(drv = odbc(), dsn = "OAO Cloud DB SoYoun", timeout = 30)
+
+# Import Slot Availability Data ------------------------------------------------
+# slot_raw_tbl <- tbl(conn1, "Y_DM_BOOKED_FILLED_RATE")
+access_raw_tbl <- tbl(conn1, "MV_DM_PATIENT_ACCESS")
+
+# date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 23:59:59")
+date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 00:00:00")
+
+
+future_scheduling_raw <- access_raw_tbl %>%
+  filter(TO_DATE(date_1,"YYYY-MM-DD HH24:MI:SS") <= APPT_DTTM) %>%
+  group_by(SITE, DEPT_SPECIALTY_NAME, DEPARTMENT_NAME, DEPARTMENT_ID, MRN, PAT_NAME, PAT_ENC_CSN_ID, REFERRAL_ID, 
+           APPT_MADE_DTTM, APPT_DTTM, PRC_NAME, DERIVED_STATUS_DESC) %>%
+  summarise(total = n()) %>%
+  collect() 
+
+
+future_appts <- future_scheduling_raw %>%
+  filter(is.na(REFERRAL_ID)) %>%
+  filter(DERIVED_STATUS_DESC == "Scheduled") %>%
+  arrange(APPT_DTTM) %>%
+  arrange(MRN) %>%
+  group_by(MRN, DEPARTMENT_ID) %>%
+  mutate(appt_dept = seq_len(n())) %>%
+  ungroup() %>%
+  group_by(MRN, DEPT_SPECIALTY_NAME)%>%
+  mutate(appt_specialty = seq_len(n())) 
+
 ```
 
 
-```{r Daily Volume Data, echo = FALSE, warning = FALSE, message = FALSE}
-# Daily volume comparison for past week
-# if(format(max(scheduling_data$Appt.DateYear), format = "%A") == "Sunday"){
-#   
-#   daily_vol <- scheduling_data %>%
-#   filter(Appt.Status == "Arrived") %>%
-#   filter(Appt.DateYear >= max(scheduling_data$Appt.DateYear)-14 & Appt.DateYear < max(scheduling_data$Appt.DateYear)) %>%
-#   group_by(Campus, Appt.Year, Appt.WeekNum, Appt.DateYear, Appt.Day, Visit.Method) %>%
-#   summarise(daily_vol = n()) %>%
-#   pivot_wider(
-#     names_from = Visit.Method, 
-#     values_from = daily_vol,
-#     values_fill=list(daily_vol=0)
-#   ) %>%
-#   mutate(Total = sum(`IN PERSON`, TELEHEALTH)) %>%
-#   pivot_longer(
-#     6:8,
-#     names_to = "Visit.Method",
-#     values_to = "daily_vol",
-#   )
-#   
-# } else{
-#   
-#   daily_vol <- scheduling_data %>%
-#   filter(Appt.Status == "Arrived") %>%
-#   filter(Appt.DateYear > max(scheduling_data$Appt.DateYear)-14 & Appt.DateYear <= max(scheduling_data$Appt.DateYear)) %>%
-#   group_by(Campus, Appt.Year, Appt.WeekNum, Appt.DateYear, Appt.Day, Visit.Method) %>%
-#   summarise(daily_vol = n()) %>%
-#   pivot_wider(
-#     names_from = Visit.Method, 
-#     values_from = daily_vol,
-#     values_fill=list(daily_vol=0)
-#   ) %>%
-#   mutate(Total = sum(`IN PERSON`, TELEHEALTH)) %>%
-#   pivot_longer(
-#     6:8,
-#     names_to = "Visit.Method",
-#     values_to = "daily_vol",
-#   )
-#   
-# }
-#                            
-#                            
-# if(format(max(scheduling_data$Appt.DateYear), format = "%A") == "Sunday"){
-#   
-# # Daily volume comparison of same week last year 
-# daily_vol_last_year <- scheduling_data %>%
-#   filter(Appt.Status == "Arrived") %>%
-#   filter(Appt.WeekNum == lubridate::epiweek(todays_date) - 1) %>%
-#   # filter(Appt.DateYear >= max(scheduling_data$Appt.DateYear)-5) %>%
-#   group_by(Campus, Appt.Year, Appt.WeekNum, Appt.DateYear, Appt.Day, Visit.Method) %>%
-#   summarise(daily_vol = n()) %>%
-#   pivot_wider(
-#     names_from = Visit.Method, 
-#     values_from = daily_vol,
-#     values_fill=list(daily_vol=0)
-#   ) %>%
-#   mutate(Total = sum(`IN PERSON`, TELEHEALTH)) %>%
-#   pivot_longer(
-#     6:8,
-#     names_to = "Visit.Method",
-#     values_to = "daily_vol",
-#   )
-# } else{
-#   
-#   # Daily volume comparison of same week last year 
-# daily_vol_last_year <- scheduling_data %>%
-#   filter(Appt.Status == "Arrived") %>%
-#   filter(Appt.WeekNum == lubridate::epiweek(todays_date)) %>%
-#   # filter(Appt.DateYear >= max(scheduling_data$Appt.DateYear)-5) %>%
-#   group_by(Campus, Appt.Year, Appt.WeekNum, Appt.DateYear, Appt.Day, Visit.Method) %>%
-#   summarise(daily_vol = n()) %>%
-#   pivot_wider(
-#     names_from = Visit.Method, 
-#     values_from = daily_vol,
-#     values_fill=list(daily_vol=0)
-#   ) %>%
-#   mutate(Total = sum(`IN PERSON`, TELEHEALTH)) %>%
-#   pivot_longer(
-#     6:8,
-#     names_to = "Visit.Method",
-#     values_to = "daily_vol",
-#   )
-# }
-  daily_vol <- scheduling_data %>%
-  filter(Appt.Status == "Arrived") %>%
-  filter(Appt.DateYear >= todays_date-7) %>%
-  group_by(Campus, Appt.Year, Appt.WeekNum, Appt.DateYear, Appt.Day, Visit.Method) %>%
-  summarise(daily_vol = n()) %>%
-  pivot_wider(
-    names_from = Visit.Method,
-    values_from = daily_vol,
-    values_fill=list(daily_vol=0)
-  ) %>%
-  mutate(Total = sum(`IN PERSON`, TELEHEALTH)) %>%
-  pivot_longer(
-    6:8,
-    names_to = "Visit.Method",
-    values_to = "daily_vol",
-  )
-daily_vol_last_year <- scheduling_data %>%
-  filter(Appt.Status == "Arrived") %>%
-  filter(Appt.WeekNum == lubridate::epiweek(todays_date)) %>%
-  # filter(Appt.DateYear >= max(scheduling_data$Appt.DateYear)-5) %>%
-  group_by(Campus, Appt.Year, Appt.WeekNum, Appt.DateYear, Appt.Day, Visit.Method) %>%
-  summarise(daily_vol = n()) %>%
-  pivot_wider(
-    names_from = Visit.Method,
-    values_from = daily_vol,
-    values_fill=list(daily_vol=0)
-  ) %>%
-  mutate(Total = sum(`IN PERSON`, TELEHEALTH)) %>%
-  pivot_longer(
-    6:8,
-    names_to = "Visit.Method",
-    values_to = "daily_vol",
-  )
+```{r}
+
+# date_1 <- paste0(as.Date("2023-02-01", "%Y-%m-%d"), " 00:00:00")
+# 
+# test <- access_raw_tbl %>%
+#   filter(APPT_DTTM >= TO_DATE(date_1,"YYYY-MM-DD HH24:MI:SS")) %>%
+#   group_by(PAT_ENC_CSN_ID, APPT_DTTM, APPT_MADE_DTTM) %>%
+#   summarise(total = n()) %>%
+#   collect()
+# 
+# test$check <- NULL
+# test$total <- NULL
+# 
+# test2 <- access_raw_tbl %>%
+#   filter(APPT_MADE_DTTM >= TO_DATE(date_1,"YYYY-MM-DD HH24:MI:SS")) %>%
+#   group_by(PAT_ENC_CSN_ID, APPT_DTTM, APPT_MADE_DTTM) %>%
+#   summarise(total = n()) %>%
+#   collect()
+# 
+# test3 <- access_raw_tbl %>%
+#   filter(APPT_DTTM >= TO_DATE(date_1,"YYYY-MM-DD HH24:MI:SS") | APPT_MADE_DTTM >= TO_DATE(date_1,"YYYY-MM-DD HH24:MI:SS")) %>%
+#   group_by(PAT_ENC_CSN_ID, APPT_DTTM, APPT_MADE_DTTM) %>%
+#   summarise(total = n()) %>%
+#   collect()
+# 
+# test3$total <- NULL
+
 ```
 
 
-```{r Weekly Volume Data, echo = FALSE, warning = FALSE, message = FALSE}
-weekly_vol_df <- merge(scheduling_data, past_5_wks[,c("Appt.Year","Appt.WeekNum")])
-weekly_vol <- weekly_vol_df %>%
-  filter(Appt.Week %in% unique(past_5_wks$Appt.Week)) %>%
-  filter(Appt.Status == "Arrived") %>%
-  arrange(Appt.Year, Appt.WeekNum) %>%
-  group_by(Campus, Campus.Specialty, Department, Appt.Year, Appt.Week, Appt.WeekNum, Visit.Method) %>%
-  summarise(weekly_vol = n()) %>%
-  pivot_wider(
-    names_from = Visit.Method, 
-    values_from = weekly_vol,
-    values_fill=list(weekly_vol=0)
-  ) %>%
-  mutate(Total = sum(`IN PERSON`, TELEHEALTH)) %>%
-  pivot_longer(
-    7:9,
-    names_to = "Visit.Method",
-    values_to = "weekly_vol"
-  )
-weekly_vol_last_year <- scheduling_data %>%
-  filter(Appt.WeekNum %in% unique(past_4_wks$Appt.WeekNum)) %>%
-  filter(Appt.Status == "Arrived") %>%
-  arrange(Appt.Year, Appt.WeekNum) %>%
-  group_by(Campus, Campus.Specialty, Department, Appt.Year, Appt.Week, Appt.WeekNum, Visit.Method) %>%
-  summarise(weekly_vol = n()) %>%
-    pivot_wider(
-    names_from = Visit.Method, 
-    values_from = weekly_vol,
-    values_fill=list(weekly_vol=0)
-  ) %>%
-  mutate(Total = sum(`IN PERSON`, TELEHEALTH)) %>%
-  pivot_longer(
-    7:9,
-    names_to = "Visit.Method",
-    values_to = "weekly_vol"
-  )
-```
+```{r Unassigned Referrals, echo = FALSE, warning = FALSE, message = FALSE}
+
+unassigned_referrals <- referral_vol %>%
+  filter(ApptStatusFinal == "Pending") %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(ExpirationInstant > report_run_date) %>%
+  filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
+  group_by(ReferralKey, ReferralEpicId, StartInstant, Patient_MRN, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
+  summarise(total = n()) %>%
+  dplyr::select(-total)
 
 
-```{r Monthly Volume Data, echo = FALSE, warning = FALSE, message = FALSE}
-monthly_vol <- scheduling_data %>%
-  filter(Appt.Status == "Arrived") %>%
-  # filter(Appt.Year >= as.numeric(todays_year)-1) %>%
-  mutate(Appt.MonNum = as.numeric(strftime(Appt.DateYear, format = "%m")),
-         Appt.Month = strftime(Appt.DateYear, format = "%B")) %>%
-  group_by(Campus, Campus.Specialty, Department, Appt.Year, Appt.MonNum, Appt.Month, Visit.Method) %>%
-  summarise(monthly_vol = n()) 
-# Merge with Rad Onc and Radiology Data
-monthly_vol <- bind_rows(monthly_vol, rad_radOnc_data)
-monthly_vol <- monthly_vol %>%
-  dplyr::select(-Month) %>%
-  pivot_wider(
-    names_from = Visit.Method, 
-    values_from = monthly_vol,
-    values_fill=list(monthly_vol=0)
-  ) %>%
-  mutate(Total = sum(`IN PERSON`, TELEHEALTH)) %>%
-  pivot_longer(
-    7:9,
-    names_to = "Visit.Method",
-    values_to = "monthly_vol"
-  )
-monthly_vol <- monthly_vol %>%
-  filter(Appt.Year >= as.numeric(todays_year)-1) 
-# require(openxlsx)
-# write.xlsx(monthly_vol, "/SharedDrive/deans/Presidents/SixSigma/Individual Folders/Current Employees/Engineers/So Youn Kweon/server-upload/monthly_volume_Jan21Dec22.xlsx")
-# Last 12 months of monthly data 
-# monthly_vol_12mo <- scheduling_data %>%
-#   filter(Appt.Status == "Arrived") %>%
-#   filter(Appt.DTTM >= max(Appt.DTTM) - months(13)) %>%
-#   mutate(Appt.MonNum = as.numeric(strftime(Appt.DateYear, format = "%m")),
-#          Appt.Month = strftime(Appt.DateYear, format = "%B")) %>%
-#   group_by(Campus, Campus.Specialty, Department, Appt.Year, Appt.MonNum, Appt.Month, Visit.Method) %>%
-#   summarise(monthly_vol = n()) 
-# # Merge with Rad Onc and Radiology Data
-# rad_radOnc_data_12mo <- merge(unique(monthly_vol_12mo[,c("Appt.Year","Appt.MonNum")]), rad_radOnc_data)
-# monthly_vol_12mo <- bind_rows(monthly_vol_12mo, rad_radOnc_data_12mo)
-# monthly_vol_12mo <- monthly_vol_12mo %>%
-#   dplyr::select(-Month) %>%
-#   pivot_wider(
-#     names_from = Visit.Method, 
-#     values_from = monthly_vol,
-#     values_fill=list(monthly_vol=0)
-#   ) %>%
-#   mutate(Total = sum(`IN PERSON`, TELEHEALTH)) %>%
-#   pivot_longer(
-#     7:9,
-#     names_to = "Visit.Method",
-#     values_to = "monthly_vol"
-#   )
-# monthly_vol_12mo <- monthly_vol_12mo %>%
-#   filter(Appt.Year >= as.numeric(todays_year)-1) 
-```
+unassigned_referrals_dept <- merge(unassigned_referrals, 
+              future_appts %>% filter(appt_dept == 1) %>% 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM), 
+              by.x = c("Patient_MRN", "ReceivedByDepID"),
+              by.y = c("MRN", "DEPARTMENT_ID"))
+
+unassigned_referrals_specialty <- merge(unassigned_referrals, 
+              future_appts %>% filter(appt_specialty == 1) %>% 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM), 
+              by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"),
+              by.y = c("MRN", "DEPT_SPECIALTY_NAME"))
 
 
-```{r 2022 Past Year Volume Reference, echo = FALSE, warning = FALSE, message = FALSE}
-# In Person + Telehealth (Includes Radiology and Rad Onc) - Based on Exeutive Dashboard Tableau Workbook
-avg_2022_ref <- monthly_vol %>%
-  filter(Appt.Year == 2022) %>%
-  filter(Visit.Method == "Total") %>%
-  group_by(Campus, Appt.Year, Appt.Month) %>%
-  summarise(total = sum(monthly_vol)) %>%
-  group_by(Campus) %>%
-  summarise(avg = round(mean(total),0))
+unassigned_referrals_merged <- bind_rows(unassigned_referrals_dept, unassigned_referrals_specialty)
+unassigned_referrals_merged <- unassigned_referrals_merged %>%
+  dplyr::select(-DEPT_SPECIALTY_NAME) %>%
+  dplyr::select(-DEPARTMENT_ID) %>%
+  distinct()
+
+unassigned_referrals_future_appts <- left_join(unassigned_referrals, unassigned_referrals_merged)
+unassigned_referrals_future_appts <- unassigned_referrals_future_appts %>%
+  mutate(type = case_when(!is.na(DEPARTMENT_NAME) & ReceivedByDept == DEPARTMENT_NAME ~ "Earliest scheduled in same department",
+                          !is.na(DEPARTMENT_NAME) ~ "Earliest scheduled in same specialty",
+                          TRUE ~ ""))
 ```
 
 
@@ -637,24 +425,298 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 ```
 
 
-# Ambulatory Volume Summary
-*Report run date: `r report_run_date`*<br/>
-*Report produced for week of `r todays_date`*<br/>
-*A Full week is comprised of Sunday to Saturday.*<br/>
-*Includes all completed/arrived visits.*<br/>
-*Rad Onc and Radiology data is included only in monthly volumes.*<br/>
-__________________________________________________________________________________________________________________________________________________________
+# Ambulatory Unassigned Referrals Report
+*Report Run Date: `r report_run_date`*<br/>
+*Data Date Range: From 2022-04-01 to `r report_run_date - 1`*<br/>
+*Data Source: EPIC Caboodle Referrals Data and Clarity Scheduling Data*<br/>
 
-## Monthly Volume by Site {.tabset .tabset-fade .tabset-pills}
-```{r Monthly Volume Data Download, echo = FALSE, warning = FALSE, message = FALSE}
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+<span style='font-size: 18px;; color: #d80b8c'>**Metric Definitions:**</span>
+:::
+<span style='font-size: 16px;'>-- **Conversion Rate:** Total referrals with **scheduled visits** over total referrals received</span><br/>
+<span style='font-size: 16px;'>-- **Completion Rate:** Total referrals with **arrived visits** over total referrals received</span><br/>
+<span style='font-size: 16px;'>-- **Expired Unassigned Rate:** Total referrals expired with **no visits linked** over total referrals received</span><br/>
+<span style='font-size: 16px;'>-- **Unassigned Referrals:** Total referrals with **no visits linked** over total referrals received</span>
+::::
+
+
+## Referrals Summary
+```{r Referrals Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+referrals_summary_site <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ApptStatusFinal) %>%
+  summarise(total = n()) %>%
+  pivot_wider(names_from = ApptStatusFinal,
+              values_from = total,
+              values_fill = 0) %>%
+  adorn_totals("row", "Total") %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty) %>%
+  mutate(Total = sum(across(where(is.numeric)))) %>%
+  mutate(conversion_rate = round((Total - Pending)/Total ,2),
+         completion_rate = round(Arrived/Total, 2),
+         unassigned_perc = round(Pending/ Total,2))
+
+expired_summary_site <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
+  filter(ExpirationInstant < report_run_date) %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ApptStatusFinal) %>%
+  summarise(total = n()) %>%
+  pivot_wider(names_from = ApptStatusFinal,
+              values_from = total,
+              values_fill = 0) %>%
+  adorn_totals("row", "Total") %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty) %>%
+  mutate(Total = sum(across(where(is.numeric)))) %>%
+  dplyr::select(ReceivedBySite, ReferredToDepartmentSpecialty, Pending) %>%
+  rename(expired_unassigned = Pending)
+
+referrals_summary_site <- left_join(referrals_summary_site, expired_summary_site)
+referrals_summary_site <- referrals_summary_site %>%
+  mutate(expired_unassigned_perc = round(expired_unassigned/Total,2))
+
+unassigned_referrals_future_appts_summary <- unassigned_referrals_merged %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ReferralKey) %>%
+  summarise(total = n()) %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty) %>%
+  summarise(future_appts = n())
+
+referrals_summary_site <- merge(referrals_summary_site, unassigned_referrals_future_appts_summary)
+  
+referrals_summary_site <- referrals_summary_site %>%
+  mutate(unassigned_appts_perc = round(future_appts/Pending,2)) 
+
+referrals_summary_site[is.na(referrals_summary_site)] <- 0
+
+reactable(
+  referrals_summary_site %>%
+    dplyr::select(ReceivedBySite, ReferredToDepartmentSpecialty, Total, Arrived, Pending, 
+                  conversion_rate, completion_rate, expired_unassigned, expired_unassigned_perc, future_appts),
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left", 
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  
+  groupBy = c("ReceivedBySite", "ReferredToDepartmentSpecialty"),
+  
+  
+  columns = list(
+    
+    ReceivedBySite = colDef(
+      # footer = "Total",
+      name = "Site",
+      minWidth = 180),
+    
+    ReferredToDepartmentSpecialty = colDef(
+      # footer = "Total",
+      name = "Specialty",
+      minWidth = 180),
+    
+    Total = colDef(
+      name = "Total Referrals Received",
+      minWidth = 100,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = "sum",
+      # footer = JS("function(column, state) {
+      #   let total = 0
+      #   state.sortedData.forEach(function(row) {
+      #     total += row[column.id]
+      #   })
+      #   return total.toFixed(0)
+      # }"),
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)", borderRight = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    # Arrived = colDef(
+    #   name = "Referrals with Completed Appointments",
+    #   maxWidth = 100,
+    #   headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+    #   aggregate = "sum",
+    #   # footer = JS("function(column, state) {
+    #   #   let total = 0
+    #   #   state.sortedData.forEach(function(row) {
+    #   #     total += row[column.id]
+    #   #   })
+    #   #   return total.toFixed(0).toLocaleString()
+    #   # }"),
+    #   format = colFormat(separators = TRUE, digits = 0)
+    # ),
+    # 
+    # Pending = colDef(
+    #   name = "Referrals Unassigned (No Visits Linked)",
+    #   maxWidth = 100,
+    #   headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+    #   aggregate = "sum",
+    #   # footer = JS("function(column, state) {
+    #   #   let total = 0
+    #   #   state.sortedData.forEach(function(row) {
+    #   #     total += row[column.id]
+    #   #   })
+    #   #   return total.toFixed(0)
+    #   # }"),
+    #   format = colFormat(separators = TRUE, digits = 0),
+    #   style = list(borderRight = "1.5px solid rgb(230, 230, 230)")
+    # ),
+    
+    conversion_rate = colDef(
+      name = "Conversion Rate",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      # Calculate the aggregate conversion rate as `(total-pending) / total`
+      aggregate = JS("function(values, rows) {
+        let totalPending = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal += row['Total']
+          totalPending += row['Pending']
+        })
+        return (totalTotal - totalPending) / totalTotal
+      }"),
+      style = JS("function(rowInfo) {
+        var value = rowInfo.row['conversion_rate']
+        if (value > 0.5) {
+          var color = '#008000'
+        } else if (value <= 0.5 ) {
+          var color = '#e00000'
+        } else {
+          var color = '#000000'
+        }
+        return { color: color, fontFamily: 'calibri', fontWeight: 'bold'}
+      }"),
+      format = colFormat(percent = TRUE, digits = 0)
+    ),
+    
+    completion_rate = colDef(
+      name = "Completion Rate",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      # Calculate the aggregate conversion rate as `(total-pending) / total`
+      aggregate = JS("function(values, rows) {
+        let totalArrived = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal += row['Total']
+          totalArrived += row['Arrived']
+        })
+        return totalArrived / totalTotal
+      }"),
+      style = JS("function(rowInfo) {
+        var value = rowInfo.row['completion_rate']
+        if (value > 0.5) {
+          var color = '#008000'
+        } else if (value <= 0.5 ) {
+          var color = '#e00000'
+        } else {
+          var color = '#000000'
+        }
+        return { color: color, fontFamily: 'calibri', fontWeight: 'bold'}
+      }"),
+      format = colFormat(percent = TRUE, digits = 0)
+    ),
+    
+    expired_unassigned_perc = colDef(
+      name = "Expired Referrals Unassigned Rate",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      # Calculate the aggregate conversion rate as `(total-pending) / total`
+      aggregate = JS("function(values, rows) {
+        let totalExpiredUnassigned = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal += row['Total']
+          totalExpiredUnassigned += row['expired_unassigned']
+        })
+        return totalExpiredUnassigned / totalTotal
+      }"),
+      # style = JS("function(rowInfo) {
+      #   var value = rowInfo.row['completion_rate']
+      #   if (value > 0.5) {
+      #     var color = '#008000'
+      #   } else if (value <= 0.5 ) {
+      #     var color = '#e00000'
+      #   } else {
+      #     var color = '#000000'
+      #   }
+      #   return { color: color, fontFamily: 'calibri', fontWeight: 'bold'}
+      # }"),
+      style = list(color = "#e00000", fontWeight = "bold"),
+      format = colFormat(percent = TRUE, digits = 0)
+    ),
+ 
+    future_appts = colDef(
+      name = "Active Unassigned Referrals with Potential Upcoming Appointments",
+      minWidth = 100,
+      headerStyle = list(background = "#00aeef", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = "sum",
+      # footer = JS("function(column, state) {
+      #   let total = 0
+      #   state.sortedData.forEach(function(row) {
+      #     total += row[column.id]
+      #   })
+      #   return total.toFixed(0)
+      # }"),
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)", fontWeight = "bold", background = "#c9f0ff")
+    ),
+    
+    Arrived = colDef(
+      show = F
+    ),
+    
+    Pending = colDef(
+      show = F
+    ),
+    
+    expired_unassigned = colDef(
+      show = F
+    )
+    
+  ) # Close Columns
+  
+  ) # Close Reactable
+
+```
+<br/>
+<br/>
+
+## Unassigned Referrals
+```{r Unassigned Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+unassigned_output <- unassigned_referrals_future_appts %>%
+    filter(type != "") %>%
+    dplyr::select(ReferralEpicId, Patient_MRN, StartInstant, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept,
+                  type, DEPARTMENT_NAME, APPT_DTTM) %>%
+    arrange(desc(APPT_DTTM)) %>%
+    arrange(ReferralEpicId, Patient_MRN) %>%
+    rename(ScheduledDept = DEPARTMENT_NAME,
+           AppointmentDateTime = APPT_DTTM) %>%
+    mutate(AppointmentDateTime = as.character(AppointmentDateTime)) %>%
+  dplyr::select(-ReferralKey) %>%
+  rename(`Referral Created Date` = StartInstant,
+         `Upcoming Appt Dept vs. Specialty` = type)
+
+
+
 htmltools::browsable(
   tagList(
     tags$button(
-      tagList(fontawesome::fa("download"), "Download Monthly Volume by Site"),
-      onclick = "Reactable.downloadDataCSV('month-volume-download-table', 'Ambulatory Volume by Month'"
+      tagList(fontawesome::fa("download"), "Download Data (Unassigned Referrals with Potential Upcoming Appointments)"),
+      onclick = "Reactable.downloadDataCSV('unassigned-download-table', 'Unassigned Referrals Data')"
     ),
+
     reactable(
-      monthly_vol,
+      unassigned_output %>%
+        arrange(ReceivedBySite, ReferredToDepartmentSpecialty),
       style = list(fontFamily = 'Calibri',
                  fontSize = '14px'),
     defaultColDef = colDef(align = "left", 
@@ -667,20 +729,77 @@ htmltools::browsable(
     wrap = TRUE,
     searchable = TRUE,
     
-    groupBy = c("Campus"),
-    elementId = "month-volume-download-table"
+    groupBy = c("ReceivedBySite", "ReferredToDepartmentSpecialty", "ReceivedByDept"),
+    elementId = "unassigned-download-table",
+    
+    columns = list(
+    
+    ReceivedBySite = colDef(
+      # footer = "Total",
+      name = "Site",
+      minWidth = 180),
+    
+    ReferredToDepartmentSpecialty = colDef(
+      # footer = "Total",
+      name = "Specialty",
+      minWidth = 180),
+    
+    ReceivedByDept = colDef(
+      # footer = "Total",
+      name = "Department",
+      minWidth = 180),
+    
+    Patient_MRN = colDef(
+      # footer = "Total",
+      name = "Patient MRN"),
+    
+    type = colDef(
+      # footer = "Total",
+      minWidth = 180)
+    
+    )
+    
+#     columns = list(
+#   AppointmentDateTime = colDef(format = colFormat(datetime = TRUE))
+#   # date = colDef(format = colFormat(date = TRUE)),
+#   # time = colDef(format = colFormat(time = TRUE)),
+#   # time_24h = colDef(format = colFormat(time = TRUE, hour12 = FALSE)),
+#   # datetime_pt_BR = colDef(format = colFormat(datetime = TRUE, locales = "pt-BR"))
+# )
+
     )
   )
 )
-```
 
 
-```{r Monthly Volume Data Download Test, echo = FALSE, warning = FALSE, message = FALSE}
-datatable(monthly_vol, extensions = "Buttons", 
-            options = list(paging = TRUE,
-                           scrollX=TRUE, 
-                           searching = TRUE,
-                           ordering = TRUE,
-                           dom = 'Bfrtip',
-                           buttons = c('copy', 'csv', 'excel', 'pdf')))
+# datatable(
+#   unassigned_referrals_future_appts %>%
+#     filter(type != "") %>%
+#     dplyr::select(ReferralEpicId, Patient_MRN, StartInstant, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept,
+#                   type, DEPARTMENT_NAME, APPT_DTTM) %>%
+#     arrange(desc(APPT_DTTM)) %>%
+#     arrange(ReferralEpicId, Patient_MRN) %>%
+#     rename(ScheduledDept = DEPARTMENT_NAME,
+#            AppointmentDateTime = APPT_DTTM) %>%
+#     mutate(AppointmentDateTime = as.character(AppointmentDateTime))
+#     ,
+#   extensions = 'Buttons', options = list(
+#     dom = 'Bfrtip',
+#     buttons = 
+#       list('copy', 'print', list(
+#         extend = 'collection',
+#         buttons = c('csv', 'excel', 'pdf'),
+#         text = 'Download'
+#       )),
+#     initComplete = JS(
+#     "function(settings, json) {",
+#     "$('body').css({'font-family': 'Calibri'});",
+#     "}"
+#   )
+#     
+#   )
+# ) %>%
+#   formatDate(10, "toLocaleString")
+
 ```
+
