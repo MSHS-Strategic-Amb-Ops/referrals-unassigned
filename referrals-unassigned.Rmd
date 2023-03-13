@@ -386,9 +386,9 @@ future_appts <- future_scheduling_raw %>%
 unassigned_referrals <- referral_vol %>%
   filter(ApptStatusFinal == "Pending") %>%
   filter(ReceivedByDept != "*Unspecified") %>%
-  filter(ExpirationInstant > report_run_date) %>%
+  filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
   filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
-  group_by(ReferralKey, ReferralEpicId, StartInstant, Patient_MRN, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
+  group_by(ReferralKey, ReferralEpicId, StartInstant, ExpirationInstant, Patient_MRN, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
   summarise(total = n()) %>%
   dplyr::select(-total)
 
@@ -399,11 +399,19 @@ unassigned_referrals_dept <- merge(unassigned_referrals,
               by.x = c("Patient_MRN", "ReceivedByDepID"),
               by.y = c("MRN", "DEPARTMENT_ID"))
 
+unassigned_referrals_dept <- unassigned_referrals_dept %>% # Remove upcoming appts beyond referral expiration
+  filter(as.Date(ExpirationInstant) >= as.Date(Appt_DTTM))
+unassigned_referrals_dept$ExpirationInstant <- NULL
+
+
 unassigned_referrals_specialty <- merge(unassigned_referrals, 
               future_appts %>% filter(appt_specialty == 1) %>% 
                 dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM), 
               by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"),
               by.y = c("MRN", "DEPT_SPECIALTY_NAME"))
+unassigned_referrals_specialty <- unassigned_referrals_specialty %>% # Remove upcoming appts beyond referral expiration
+  filter(as.Date(ExpirationInstant) >= as.Date(Appt_DTTM))
+unassigned_referrals_specialty$ExpirationInstant <- NULL
 
 
 unassigned_referrals_merged <- bind_rows(unassigned_referrals_dept, unassigned_referrals_specialty)
@@ -429,6 +437,7 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 *Report Run Date: `r report_run_date`*<br/>
 *Data Date Range: From 2022-04-01 to `r report_run_date - 1`*<br/>
 *Data Source: EPIC Caboodle Referrals Data and Clarity Scheduling Data*<br/>
+*Active unassigned referrals with potential upcoming visits excludes expired referrals and referrals with potential upcoming appointments scheduled for after referral expiration date*<br/>
 
 :::: {.blackbox data-latex=""}
 ::: {.center data-latex=""}
