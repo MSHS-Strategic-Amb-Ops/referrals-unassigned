@@ -410,7 +410,7 @@ unassigned_referrals_specialty <- merge(unassigned_referrals,
               by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"),
               by.y = c("MRN", "DEPT_SPECIALTY_NAME"))
 unassigned_referrals_specialty <- unassigned_referrals_specialty %>% # Remove upcoming appts beyond referral expiration
-  filter(as.Date(ExpirationInstant) >= as.Date(Appt_DTTM))
+  filter(as.Date(ExpirationInstant) >= as.Date(APPT_DTTM))
 unassigned_referrals_specialty$ExpirationInstant <- NULL
 
 
