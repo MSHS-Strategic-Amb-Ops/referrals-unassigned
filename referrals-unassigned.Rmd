@@ -12,7 +12,7 @@ output:
 
 <style type="text/css">
 div.main-container {
-  max-width: 1700px;
+  max-width: 2000px;
   margin-left: auto;
   margin-right: auto;
 }
@@ -311,7 +311,7 @@ path <- "/nfs/data/Applications/Ambulatory/Data_Updated/"
 
 referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
 
-# referral_vol <- readRDS("referral_vol (1).rds")
+# referral_vol <- readRDS("referral_vol (2).rds")
 
 ```
 
@@ -388,7 +388,7 @@ unassigned_referrals <- referral_vol %>%
   filter(ReceivedByDept != "*Unspecified") %>%
   filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
   filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
-  group_by(ReferralKey, ReferralEpicId, StartInstant, ExpirationInstant, Patient_MRN, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
+  group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
   summarise(total = n()) %>%
   dplyr::select(-total)
 
@@ -425,6 +425,14 @@ unassigned_referrals_future_appts <- unassigned_referrals_future_appts %>%
   mutate(type = case_when(!is.na(DEPARTMENT_NAME) & ReceivedByDept == DEPARTMENT_NAME ~ "Earliest scheduled in same department",
                           !is.na(DEPARTMENT_NAME) ~ "Earliest scheduled in same specialty",
                           TRUE ~ ""))
+
+# Add Assignment Priority
+# unassigned_referrals_future_appts <- unassigned_referrals_future_appts %>%
+#   mutate(assign_priority = case_when(is.na(APPT_DTTM) ~ "",
+#                                      as.Date(APPT_DTTM) > StartInstant ~ "High",
+#                                      TRUE ~ "Low")) 
+#   
+
 ```
 
 
@@ -442,13 +450,14 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 :::: {.blackbox data-latex=""}
 ::: {.center data-latex=""}
 <span style='font-size: 18px;; color: #d80b8c'>**Metric Definitions:**</span>
-:::
+<br/>
 <span style='font-size: 16px;'>-- **Conversion Rate:** Total referrals with **scheduled visits** over total referrals received</span><br/>
 <span style='font-size: 16px;'>-- **Completion Rate:** Total referrals with **arrived visits** over total referrals received</span><br/>
 <span style='font-size: 16px;'>-- **Expired Unassigned Rate:** Total referrals expired with **no visits linked** over total referrals received</span><br/>
 <span style='font-size: 16px;'>-- **Unassigned Referrals:** Total referrals with **no visits linked** over total referrals received</span>
+<br/>
+:::
 ::::
-
 
 ## Referrals Summary
 ```{r Referrals Output, echo = FALSE, warning = FALSE, message = FALSE}
@@ -488,7 +497,7 @@ referrals_summary_site <- referrals_summary_site %>%
   mutate(expired_unassigned_perc = round(expired_unassigned/Total,2))
 
 unassigned_referrals_future_appts_summary <- unassigned_referrals_merged %>%
-  group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ReferralKey) %>%
+  group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ReferralEpicId) %>%
   summarise(total = n()) %>%
   group_by(ReceivedBySite, ReferredToDepartmentSpecialty) %>%
   summarise(future_appts = n())
@@ -703,16 +712,22 @@ reactable(
 
 unassigned_output <- unassigned_referrals_future_appts %>%
     filter(type != "") %>%
-    dplyr::select(ReferralEpicId, Patient_MRN, StartInstant, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept,
+    dplyr::select(ReferralEpicId, Patient_MRN, StartInstant, ProcedureName, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept,
                   type, DEPARTMENT_NAME, APPT_DTTM) %>%
     arrange(desc(APPT_DTTM)) %>%
     arrange(ReferralEpicId, Patient_MRN) %>%
     rename(ScheduledDept = DEPARTMENT_NAME,
            AppointmentDateTime = APPT_DTTM) %>%
     mutate(AppointmentDateTime = as.character(AppointmentDateTime)) %>%
-  dplyr::select(-ReferralKey) %>%
-  rename(`Referral Created Date` = StartInstant,
-         `Upcoming Appt Dept vs. Specialty` = type)
+  pivot_wider(names_from = type, 
+              values_from = ScheduledDept:AppointmentDateTime) %>%
+  rename(Future_Dept_ApptDate = `AppointmentDateTime_Earliest scheduled in same department`,
+         Future_Specialty_Dept = `ScheduledDept_Earliest scheduled in same specialty`,
+         Future_Specialty_ApptDate = `AppointmentDateTime_Earliest scheduled in same specialty`) %>%
+  ungroup() %>%
+  dplyr::select(StartInstant, ReferralEpicId, Patient_MRN, ProcedureName, ReceivedBySite, ReferredToDepartmentSpecialty, 
+                ReceivedByDept, Future_Dept_ApptDate,
+                Future_Specialty_Dept, Future_Specialty_ApptDate)
 
 
 
@@ -745,26 +760,42 @@ htmltools::browsable(
     
     ReceivedBySite = colDef(
       # footer = "Total",
-      name = "Site",
+      # name = "Site",
       minWidth = 180),
     
     ReferredToDepartmentSpecialty = colDef(
       # footer = "Total",
-      name = "Specialty",
+      # name = "Specialty",
       minWidth = 180),
     
     ReceivedByDept = colDef(
       # footer = "Total",
-      name = "Department",
+      # name = "Department",
       minWidth = 180),
     
     Patient_MRN = colDef(
       # footer = "Total",
       name = "Patient MRN"),
     
-    type = colDef(
+    StartInstant = colDef(
       # footer = "Total",
-      minWidth = 180)
+      name = "Referral Created Date"),
+    
+    ProcedureName = colDef(
+      # footer = "Total",
+      name = "Procedure Name"),
+    
+    Future_Dept_ApptDate = colDef(
+      # footer = "Total",
+      name = "ReceivedByDept Appt Date"),
+    
+    Future_Specialty_Dept = colDef(
+      # footer = "Total",
+      name = "ReceivedBySpecialty Department"),
+    
+    Future_Specialty_ApptDate = colDef(
+      # footer = "Total",
+      name = "ReceivedBySpecialty Appt Date")
     
     )
     
