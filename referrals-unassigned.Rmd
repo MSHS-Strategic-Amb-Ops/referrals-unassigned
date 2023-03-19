@@ -381,7 +381,7 @@ future_appts <- future_scheduling_raw %>%
 ```
 
 
-```{r Unassigned Referrals, echo = FALSE, warning = FALSE, message = FALSE}
+```{r Unassigned Referrals Received, echo = FALSE, warning = FALSE, message = FALSE}
 
 unassigned_referrals <- referral_vol %>%
   filter(ApptStatusFinal == "Pending") %>%
@@ -426,12 +426,53 @@ unassigned_referrals_future_appts <- unassigned_referrals_future_appts %>%
                           !is.na(DEPARTMENT_NAME) ~ "Earliest scheduled in same specialty",
                           TRUE ~ ""))
 
-# Add Assignment Priority
-# unassigned_referrals_future_appts <- unassigned_referrals_future_appts %>%
-#   mutate(assign_priority = case_when(is.na(APPT_DTTM) ~ "",
-#                                      as.Date(APPT_DTTM) > StartInstant ~ "High",
-#                                      TRUE ~ "Low")) 
-#   
+```
+
+
+```{r Unassigned Referrals Sent, echo = FALSE, warning = FALSE, message = FALSE}
+
+unassigned_referrals_sent <- referral_vol %>%
+  filter(ApptStatusFinal == "Pending") %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
+  filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
+  group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN, SentBySite, SentBySpecialty, SentByDept, SentByDepID, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
+  summarise(total = n()) %>%
+  dplyr::select(-total)
+
+
+unassigned_referrals_dept_sent <- merge(unassigned_referrals_sent, 
+              future_appts %>% filter(appt_dept == 1) %>% 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM), 
+              by.x = c("Patient_MRN", "ReceivedByDepID"),
+              by.y = c("MRN", "DEPARTMENT_ID"))
+
+unassigned_referrals_dept_sent <- unassigned_referrals_dept_sent %>% # Remove upcoming appts beyond referral expiration
+  filter(as.Date(ExpirationInstant) >= as.Date(APPT_DTTM))
+unassigned_referrals_dept_sent$ExpirationInstant <- NULL
+
+
+unassigned_referrals_specialty_sent <- merge(unassigned_referrals_sent, 
+              future_appts %>% filter(appt_specialty == 1) %>% 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM), 
+              by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"),
+              by.y = c("MRN", "DEPT_SPECIALTY_NAME"))
+unassigned_referrals_specialty_sent <- unassigned_referrals_specialty_sent %>% # Remove upcoming appts beyond referral expiration
+  filter(as.Date(ExpirationInstant) >= as.Date(APPT_DTTM))
+unassigned_referrals_specialty_sent$ExpirationInstant <- NULL
+
+
+unassigned_referrals_merged_sent <- bind_rows(unassigned_referrals_dept_sent, unassigned_referrals_specialty_sent)
+unassigned_referrals_merged_sent <- unassigned_referrals_merged_sent %>%
+  dplyr::select(-DEPT_SPECIALTY_NAME) %>%
+  dplyr::select(-DEPARTMENT_ID) %>%
+  distinct()
+
+unassigned_referrals_future_appts_sent <- left_join(unassigned_referrals_sent, unassigned_referrals_merged_sent)
+unassigned_referrals_future_appts_sent <- unassigned_referrals_future_appts_sent %>%
+  mutate(type = case_when(!is.na(DEPARTMENT_NAME) & ReceivedByDept == DEPARTMENT_NAME ~ "Earliest scheduled in same department",
+                          !is.na(DEPARTMENT_NAME) ~ "Earliest scheduled in same specialty",
+                          TRUE ~ ""))
 
 ```
 
@@ -459,8 +500,9 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 :::
 ::::
 
-## Referrals Summary
-```{r Referrals Output, echo = FALSE, warning = FALSE, message = FALSE}
+## Referrals Summary {.tabset .tabset-fade .tabset-pills}
+### Referrals Received
+```{r Referrals Received Output, echo = FALSE, warning = FALSE, message = FALSE}
 
 referrals_summary_site <- referral_vol %>%
   filter(ReceivedByDept != "*Unspecified") %>%
@@ -707,8 +749,259 @@ reactable(
 <br/>
 <br/>
 
+
+### Referrals Sent
+```{r Referrals Sent Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+referrals_summary_site_sent <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
+  group_by(SentBySite, SentBySpecialty, ApptStatusFinal) %>%
+  summarise(total = n()) %>%
+  pivot_wider(names_from = ApptStatusFinal,
+              values_from = total,
+              values_fill = 0) %>%
+  adorn_totals("row", "Total") %>%
+  group_by(SentBySite, SentBySpecialty) %>%
+  mutate(Total = sum(across(where(is.numeric)))) %>%
+  mutate(conversion_rate = round((Total - Pending)/Total ,2),
+         completion_rate = round(Arrived/Total, 2),
+         unassigned_perc = round(Pending/ Total,2))
+
+expired_summary_site_sent <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(ReferredToDepartmentSpecialty != "*Unspecified") %>%
+  filter(ExpirationInstant < report_run_date) %>%
+  group_by(SentBySite, SentBySpecialty, ApptStatusFinal) %>%
+  summarise(total = n()) %>%
+  pivot_wider(names_from = ApptStatusFinal,
+              values_from = total,
+              values_fill = 0) %>%
+  adorn_totals("row", "Total") %>%
+  group_by(SentBySite, SentBySpecialty) %>%
+  mutate(Total = sum(across(where(is.numeric)))) %>%
+  dplyr::select(SentBySite, SentBySpecialty, Pending) %>%
+  rename(expired_unassigned = Pending)
+
+referrals_summary_site_sent <- left_join(referrals_summary_site_sent, expired_summary_site_sent)
+referrals_summary_site_sent <- referrals_summary_site_sent %>%
+  mutate(expired_unassigned_perc = round(expired_unassigned/Total,2))
+
+unassigned_referrals_future_appts_summary_sent <- unassigned_referrals_merged_sent %>%
+  group_by(SentBySite, SentBySpecialty, ReferralEpicId) %>%
+  summarise(total = n()) %>%
+  group_by(SentBySite, SentBySpecialty) %>%
+  summarise(future_appts = n())
+
+referrals_summary_site_sent <- merge(referrals_summary_site_sent, unassigned_referrals_future_appts_summary_sent)
+  
+referrals_summary_site_sent <- referrals_summary_site_sent %>%
+  mutate(unassigned_appts_perc = round(future_appts/Pending,2)) 
+
+referrals_summary_site_sent[is.na(referrals_summary_site_sent)] <- 0
+
+reactable(
+  referrals_summary_site_sent %>%
+    dplyr::select(SentBySite, SentBySpecialty, Total, Arrived, Pending, 
+                  conversion_rate, completion_rate, expired_unassigned, expired_unassigned_perc, future_appts),
+  style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left", 
+                           headerStyle = list(fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+  
+  groupBy = c("SentBySite", "SentBySpecialty"),
+  
+  
+  columns = list(
+    
+    SentBySite = colDef(
+      # footer = "Total",
+      name = "Sent Site",
+      minWidth = 180),
+    
+    SentBySpecialty = colDef(
+      # footer = "Total",
+      name = "Sent Specialty",
+      minWidth = 180),
+    
+    Total = colDef(
+      name = "Total Referrals Sent",
+      minWidth = 100,
+      headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = "sum",
+      # footer = JS("function(column, state) {
+      #   let total = 0
+      #   state.sortedData.forEach(function(row) {
+      #     total += row[column.id]
+      #   })
+      #   return total.toFixed(0)
+      # }"),
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)", borderRight = "1.5px solid rgb(230, 230, 230)")
+    ),
+    
+    # Arrived = colDef(
+    #   name = "Referrals with Completed Appointments",
+    #   maxWidth = 100,
+    #   headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+    #   aggregate = "sum",
+    #   # footer = JS("function(column, state) {
+    #   #   let total = 0
+    #   #   state.sortedData.forEach(function(row) {
+    #   #     total += row[column.id]
+    #   #   })
+    #   #   return total.toFixed(0).toLocaleString()
+    #   # }"),
+    #   format = colFormat(separators = TRUE, digits = 0)
+    # ),
+    # 
+    # Pending = colDef(
+    #   name = "Referrals Unassigned (No Visits Linked)",
+    #   maxWidth = 100,
+    #   headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+    #   aggregate = "sum",
+    #   # footer = JS("function(column, state) {
+    #   #   let total = 0
+    #   #   state.sortedData.forEach(function(row) {
+    #   #     total += row[column.id]
+    #   #   })
+    #   #   return total.toFixed(0)
+    #   # }"),
+    #   format = colFormat(separators = TRUE, digits = 0),
+    #   style = list(borderRight = "1.5px solid rgb(230, 230, 230)")
+    # ),
+    
+    conversion_rate = colDef(
+      name = "Conversion Rate",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      # Calculate the aggregate conversion rate as `(total-pending) / total`
+      aggregate = JS("function(values, rows) {
+        let totalPending = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal += row['Total']
+          totalPending += row['Pending']
+        })
+        return (totalTotal - totalPending) / totalTotal
+      }"),
+      style = JS("function(rowInfo) {
+        var value = rowInfo.row['conversion_rate']
+        if (value > 0.5) {
+          var color = '#008000'
+        } else if (value <= 0.5 ) {
+          var color = '#e00000'
+        } else {
+          var color = '#000000'
+        }
+        return { color: color, fontFamily: 'calibri', fontWeight: 'bold'}
+      }"),
+      format = colFormat(percent = TRUE, digits = 0)
+    ),
+    
+    completion_rate = colDef(
+      name = "Completion Rate",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      # Calculate the aggregate conversion rate as `(total-pending) / total`
+      aggregate = JS("function(values, rows) {
+        let totalArrived = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal += row['Total']
+          totalArrived += row['Arrived']
+        })
+        return totalArrived / totalTotal
+      }"),
+      style = JS("function(rowInfo) {
+        var value = rowInfo.row['completion_rate']
+        if (value > 0.5) {
+          var color = '#008000'
+        } else if (value <= 0.5 ) {
+          var color = '#e00000'
+        } else {
+          var color = '#000000'
+        }
+        return { color: color, fontFamily: 'calibri', fontWeight: 'bold'}
+      }"),
+      format = colFormat(percent = TRUE, digits = 0)
+    ),
+    
+    expired_unassigned_perc = colDef(
+      name = "Expired Referrals Unassigned Rate",
+      minWidth = 100,
+      headerStyle = list(background = "#d80b8c", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      # Calculate the aggregate conversion rate as `(total-pending) / total`
+      aggregate = JS("function(values, rows) {
+        let totalExpiredUnassigned = 0
+        let totalTotal = 0
+        rows.forEach(function(row) {
+          totalTotal += row['Total']
+          totalExpiredUnassigned += row['expired_unassigned']
+        })
+        return totalExpiredUnassigned / totalTotal
+      }"),
+      # style = JS("function(rowInfo) {
+      #   var value = rowInfo.row['completion_rate']
+      #   if (value > 0.5) {
+      #     var color = '#008000'
+      #   } else if (value <= 0.5 ) {
+      #     var color = '#e00000'
+      #   } else {
+      #     var color = '#000000'
+      #   }
+      #   return { color: color, fontFamily: 'calibri', fontWeight: 'bold'}
+      # }"),
+      style = list(color = "#e00000", fontWeight = "bold"),
+      format = colFormat(percent = TRUE, digits = 0)
+    ),
+ 
+    future_appts = colDef(
+      name = "Active Unassigned Referrals with Potential Upcoming Appointments",
+      minWidth = 100,
+      headerStyle = list(background = "#00aeef", color = "white", fontWeight = "Bold", fontSize = "14px"),
+      aggregate = "sum",
+      # footer = JS("function(column, state) {
+      #   let total = 0
+      #   state.sortedData.forEach(function(row) {
+      #     total += row[column.id]
+      #   })
+      #   return total.toFixed(0)
+      # }"),
+      format = colFormat(separators = TRUE, digits = 0),
+      style = list(borderLeft = "1.5px solid rgb(230, 230, 230)", fontWeight = "bold", background = "#c9f0ff")
+    ),
+    
+    Arrived = colDef(
+      show = F
+    ),
+    
+    Pending = colDef(
+      show = F
+    ),
+    
+    expired_unassigned = colDef(
+      show = F
+    )
+    
+  ) # Close Columns
+  
+  ) # Close Reactable
+
+```
+<br/>
+<br/>
+
+
 ## Unassigned Referrals
-```{r Unassigned Output, echo = FALSE, warning = FALSE, message = FALSE}
+### Referrals Received
+```{r Received Unassigned Output, echo = FALSE, warning = FALSE, message = FALSE}
 
 unassigned_output <- unassigned_referrals_future_appts %>%
     filter(type != "") %>%
@@ -842,4 +1135,157 @@ htmltools::browsable(
 #   formatDate(10, "toLocaleString")
 
 ```
+
+
+### Referrals Sent
+```{r Sent Unassigned Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+unassigned_output_sent <- unassigned_referrals_future_appts_sent %>%
+    filter(type != "") %>%
+    dplyr::select(SentBySite, SentBySpecialty, SentByDept, ReferralEpicId, Patient_MRN, StartInstant, ProcedureName, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept,
+                  type, DEPARTMENT_NAME, APPT_DTTM) %>%
+    arrange(desc(APPT_DTTM)) %>%
+    arrange(ReferralEpicId, Patient_MRN) %>%
+    rename(ScheduledDept = DEPARTMENT_NAME,
+           AppointmentDateTime = APPT_DTTM) %>%
+    mutate(AppointmentDateTime = as.character(AppointmentDateTime)) %>%
+  pivot_wider(names_from = type, 
+              values_from = ScheduledDept:AppointmentDateTime) %>%
+  rename(Future_Dept_ApptDate = `AppointmentDateTime_Earliest scheduled in same department`,
+         Future_Specialty_Dept = `ScheduledDept_Earliest scheduled in same specialty`,
+         Future_Specialty_ApptDate = `AppointmentDateTime_Earliest scheduled in same specialty`) %>%
+  ungroup() %>%
+  dplyr::select(SentBySite, SentBySpecialty, SentByDept, StartInstant, ReferralEpicId, Patient_MRN, ProcedureName, ReceivedBySite, ReferredToDepartmentSpecialty, 
+                ReceivedByDept, Future_Dept_ApptDate,
+                Future_Specialty_Dept, Future_Specialty_ApptDate)
+
+
+
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Data (Unassigned Referrals with Potential Upcoming Appointments)"),
+      onclick = "Reactable.downloadDataCSV('sent-unassigned-download-table', 'Unassigned Referrals Data')"
+    ),
+
+    reactable(
+      unassigned_output_sent %>%
+        arrange(SentBySite, SentBySpecialty, SentByDept, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept),
+      style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left", 
+                           headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+    searchable = TRUE,
+    
+    groupBy = c("SentBySite", "SentBySpecialty", "SentByDept"),
+    elementId = "sent-unassigned-download-table",
+    
+    columns = list(
+    
+    SentBySite = colDef(
+      # footer = "Total",
+      # name = "Site",
+      minWidth = 180),
+    
+    SentBySpecialty = colDef(
+      # footer = "Total",
+      # name = "Specialty",
+      minWidth = 180),
+    
+    SentByDept = colDef(
+      # footer = "Total",
+      # name = "Department",
+      minWidth = 180),
+    
+    ReceivedBySite = colDef(
+      # footer = "Total",
+      # name = "Site",
+      minWidth = 180),
+    
+    ReferredToDepartmentSpecialty = colDef(
+      # footer = "Total",
+      # name = "Specialty",
+      minWidth = 180),
+    
+    ReceivedByDept = colDef(
+      # footer = "Total",
+      # name = "Department",
+      minWidth = 180),
+    
+    Patient_MRN = colDef(
+      # footer = "Total",
+      name = "Patient MRN"),
+    
+    StartInstant = colDef(
+      # footer = "Total",
+      name = "Referral Created Date"),
+    
+    ProcedureName = colDef(
+      # footer = "Total",
+      name = "Procedure Name"),
+    
+    Future_Dept_ApptDate = colDef(
+      # footer = "Total",
+      name = "ReceivedByDept Appt Date"),
+    
+    Future_Specialty_Dept = colDef(
+      # footer = "Total",
+      name = "ReceivedBySpecialty Department"),
+    
+    Future_Specialty_ApptDate = colDef(
+      # footer = "Total",
+      name = "ReceivedBySpecialty Appt Date")
+    
+    )
+    
+#     columns = list(
+#   AppointmentDateTime = colDef(format = colFormat(datetime = TRUE))
+#   # date = colDef(format = colFormat(date = TRUE)),
+#   # time = colDef(format = colFormat(time = TRUE)),
+#   # time_24h = colDef(format = colFormat(time = TRUE, hour12 = FALSE)),
+#   # datetime_pt_BR = colDef(format = colFormat(datetime = TRUE, locales = "pt-BR"))
+# )
+
+    )
+  )
+)
+
+
+# datatable(
+#   unassigned_referrals_future_appts %>%
+#     filter(type != "") %>%
+#     dplyr::select(ReferralEpicId, Patient_MRN, StartInstant, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept,
+#                   type, DEPARTMENT_NAME, APPT_DTTM) %>%
+#     arrange(desc(APPT_DTTM)) %>%
+#     arrange(ReferralEpicId, Patient_MRN) %>%
+#     rename(ScheduledDept = DEPARTMENT_NAME,
+#            AppointmentDateTime = APPT_DTTM) %>%
+#     mutate(AppointmentDateTime = as.character(AppointmentDateTime))
+#     ,
+#   extensions = 'Buttons', options = list(
+#     dom = 'Bfrtip',
+#     buttons = 
+#       list('copy', 'print', list(
+#         extend = 'collection',
+#         buttons = c('csv', 'excel', 'pdf'),
+#         text = 'Download'
+#       )),
+#     initComplete = JS(
+#     "function(settings, json) {",
+#     "$('body').css({'font-family': 'Calibri'});",
+#     "}"
+#   )
+#     
+#   )
+# ) %>%
+#   formatDate(10, "toLocaleString")
+
+```
+
 
