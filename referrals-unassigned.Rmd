@@ -319,7 +319,7 @@ referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
 ```{r Import Future Scheduling Data, echo = FALSE, warning = FALSE, message = FALSE}
 
 # Connection to Oracle DB ------------------------------------------------------
-conn1 <- dbPool(drv = odbc(), dsn = "OAO Cloud DB SoYoun", timeout = 30)
+# conn1 <- dbPool(drv = odbc(), dsn = "OAO Cloud DB SoYoun", timeout = 30)
 conn2 <- dbConnect(odbc(), 
                   "Clarity_prod", 
                   uid = "kweons01" , 
