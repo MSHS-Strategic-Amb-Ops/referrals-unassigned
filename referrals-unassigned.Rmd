@@ -320,10 +320,14 @@ referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
 
 # Connection to Oracle DB ------------------------------------------------------
 conn1 <- dbPool(drv = odbc(), dsn = "OAO Cloud DB SoYoun", timeout = 30)
+conn2 <- dbConnect(odbc(), 
+                  "Clarity_prod", 
+                  uid = "kweons01" , 
+                  pwd = "kweons01123$")
 
 # Import Slot Availability Data ------------------------------------------------
 # slot_raw_tbl <- tbl(conn1, "Y_DM_BOOKED_FILLED_RATE")
-access_raw_tbl <- tbl(conn1, "MV_DM_PATIENT_ACCESS")
+access_raw_tbl <- tbl(conn2, "MV_DM_PATIENT_ACCESS")
 
 # date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 23:59:59")
 date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 00:00:00")
