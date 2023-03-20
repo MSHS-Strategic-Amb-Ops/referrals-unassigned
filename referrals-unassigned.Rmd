@@ -999,7 +999,7 @@ reactable(
 <br/>
 
 
-## Unassigned Referrals
+## Unassigned Referrals {.tabset .tabset-fade .tabset-pills}
 ### Referrals Received
 ```{r Received Unassigned Output, echo = FALSE, warning = FALSE, message = FALSE}
 
