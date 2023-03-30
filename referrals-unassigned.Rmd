@@ -336,7 +336,7 @@ date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 00:00:00")
 future_scheduling_raw <- access_raw_tbl %>%
   filter(TO_DATE(date_1,"YYYY-MM-DD HH24:MI:SS") <= APPT_DTTM) %>%
   group_by(SITE, DEPT_SPECIALTY_NAME, DEPARTMENT_NAME, DEPARTMENT_ID, MRN, PAT_NAME, PAT_ENC_CSN_ID, REFERRAL_ID, 
-           APPT_MADE_DTTM, APPT_DTTM, PRC_NAME, DERIVED_STATUS_DESC) %>%
+           APPT_ENTRY_USER_NAME_WID, APPT_MADE_DTTM, APPT_DTTM, PRC_NAME, DERIVED_STATUS_DESC) %>%
   summarise(total = n()) %>%
   collect() 
 
@@ -399,7 +399,7 @@ unassigned_referrals <- referral_vol %>%
 
 unassigned_referrals_dept <- merge(unassigned_referrals, 
               future_appts %>% filter(appt_dept == 1) %>% 
-                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM), 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID), 
               by.x = c("Patient_MRN", "ReceivedByDepID"),
               by.y = c("MRN", "DEPARTMENT_ID"))
 
@@ -410,7 +410,7 @@ unassigned_referrals_dept$ExpirationInstant <- NULL
 
 unassigned_referrals_specialty <- merge(unassigned_referrals, 
               future_appts %>% filter(appt_specialty == 1) %>% 
-                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM), 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID), 
               by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"),
               by.y = c("MRN", "DEPT_SPECIALTY_NAME"))
 unassigned_referrals_specialty <- unassigned_referrals_specialty %>% # Remove upcoming appts beyond referral expiration
@@ -447,7 +447,7 @@ unassigned_referrals_sent <- referral_vol %>%
 
 unassigned_referrals_dept_sent <- merge(unassigned_referrals_sent, 
               future_appts %>% filter(appt_dept == 1) %>% 
-                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM), 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID), 
               by.x = c("Patient_MRN", "ReceivedByDepID"),
               by.y = c("MRN", "DEPARTMENT_ID"))
 
@@ -458,7 +458,7 @@ unassigned_referrals_dept_sent$ExpirationInstant <- NULL
 
 unassigned_referrals_specialty_sent <- merge(unassigned_referrals_sent, 
               future_appts %>% filter(appt_specialty == 1) %>% 
-                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM), 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID), 
               by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"),
               by.y = c("MRN", "DEPT_SPECIALTY_NAME"))
 unassigned_referrals_specialty_sent <- unassigned_referrals_specialty_sent %>% # Remove upcoming appts beyond referral expiration
@@ -1010,22 +1010,24 @@ reactable(
 unassigned_output <- unassigned_referrals_future_appts %>%
     filter(type != "") %>%
     dplyr::select(ReferralEpicId, Patient_MRN, StartInstant, ProcedureName, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept,
-                  type, DEPARTMENT_NAME, APPT_DTTM) %>%
+                  type, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID) %>%
     arrange(desc(APPT_DTTM)) %>%
     arrange(ReferralEpicId, Patient_MRN) %>%
     rename(ScheduledDept = DEPARTMENT_NAME,
            AppointmentDateTime = APPT_DTTM) %>%
     mutate(AppointmentDateTime = as.character(AppointmentDateTime)) %>%
   pivot_wider(names_from = type, 
-              values_from = ScheduledDept:AppointmentDateTime) %>%
+              values_from = ScheduledDept:APPT_ENTRY_USER_NAME_WID) %>%
   rename(Future_Dept_ApptDate = `AppointmentDateTime_Earliest scheduled in same department`,
+         Future_Dept_Scheduler = `APPT_ENTRY_USER_NAME_WID_Earliest scheduled in same department`,
          Future_Specialty_Dept = `ScheduledDept_Earliest scheduled in same specialty`,
-         Future_Specialty_ApptDate = `AppointmentDateTime_Earliest scheduled in same specialty`) %>%
+         Future_Specialty_ApptDate = `AppointmentDateTime_Earliest scheduled in same specialty`,
+         Future_Specialty_Scheduler = `APPT_ENTRY_USER_NAME_WID_Earliest scheduled in same specialty`
+         ) %>%
   ungroup() %>%
   dplyr::select(StartInstant, ReferralEpicId, Patient_MRN, ProcedureName, ReceivedBySite, ReferredToDepartmentSpecialty, 
-                ReceivedByDept, Future_Dept_ApptDate,
-                Future_Specialty_Dept, Future_Specialty_ApptDate)
-
+                ReceivedByDept, Future_Dept_ApptDate, Future_Dept_Scheduler,
+                Future_Specialty_Dept, Future_Specialty_ApptDate, Future_Specialty_Scheduler)
 
 
 htmltools::browsable(
@@ -1086,13 +1088,21 @@ htmltools::browsable(
       # footer = "Total",
       name = "ReceivedByDept Appt Date"),
     
+    Future_Dept_Scheduler = colDef(
+      # footer = "Total",
+      name = "ReceivedByDept Scheduled By"),
+    
     Future_Specialty_Dept = colDef(
       # footer = "Total",
       name = "ReceivedBySpecialty Department"),
     
     Future_Specialty_ApptDate = colDef(
       # footer = "Total",
-      name = "ReceivedBySpecialty Appt Date")
+      name = "ReceivedBySpecialty Appt Date"),
+    
+    Future_Specialty_Scheduler = colDef(
+      # footer = "Total",
+      name = "ReceivedBySpecialty Scheduled By")
     
     )
     
@@ -1147,21 +1157,23 @@ htmltools::browsable(
 unassigned_output_sent <- unassigned_referrals_future_appts_sent %>%
     filter(type != "") %>%
     dplyr::select(SentBySite, SentBySpecialty, SentByDept, ReferralEpicId, Patient_MRN, StartInstant, ProcedureName, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept,
-                  type, DEPARTMENT_NAME, APPT_DTTM) %>%
+                  type, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID) %>%
     arrange(desc(APPT_DTTM)) %>%
     arrange(ReferralEpicId, Patient_MRN) %>%
     rename(ScheduledDept = DEPARTMENT_NAME,
            AppointmentDateTime = APPT_DTTM) %>%
     mutate(AppointmentDateTime = as.character(AppointmentDateTime)) %>%
   pivot_wider(names_from = type, 
-              values_from = ScheduledDept:AppointmentDateTime) %>%
+              values_from = ScheduledDept:APPT_ENTRY_USER_NAME_WID) %>%
   rename(Future_Dept_ApptDate = `AppointmentDateTime_Earliest scheduled in same department`,
+         Future_Dept_Scheduler = `APPT_ENTRY_USER_NAME_WID_Earliest scheduled in same department`,
          Future_Specialty_Dept = `ScheduledDept_Earliest scheduled in same specialty`,
-         Future_Specialty_ApptDate = `AppointmentDateTime_Earliest scheduled in same specialty`) %>%
+         Future_Specialty_ApptDate = `AppointmentDateTime_Earliest scheduled in same specialty`,
+         Future_Specialty_Scheduler = `APPT_ENTRY_USER_NAME_WID_Earliest scheduled in same specialty`) %>%
   ungroup() %>%
   dplyr::select(SentBySite, SentBySpecialty, SentByDept, StartInstant, ReferralEpicId, Patient_MRN, ProcedureName, ReceivedBySite, ReferredToDepartmentSpecialty, 
-                ReceivedByDept, Future_Dept_ApptDate,
-                Future_Specialty_Dept, Future_Specialty_ApptDate)
+                ReceivedByDept, Future_Dept_ApptDate, Future_Dept_Scheduler,
+                Future_Specialty_Dept, Future_Specialty_ApptDate, Future_Specialty_Scheduler)
 
 
 
@@ -1238,13 +1250,21 @@ htmltools::browsable(
       # footer = "Total",
       name = "ReceivedByDept Appt Date"),
     
+    Future_Dept_Scheduler = colDef(
+      # footer = "Total",
+      name = "ReceivedByDept Scheduled By"),
+    
     Future_Specialty_Dept = colDef(
       # footer = "Total",
       name = "ReceivedBySpecialty Department"),
     
     Future_Specialty_ApptDate = colDef(
       # footer = "Total",
-      name = "ReceivedBySpecialty Appt Date")
+      name = "ReceivedBySpecialty Appt Date"),
+    
+    Future_Specialty_Scheduler = colDef(
+      # footer = "Total",
+      name = "ReceivedBySpecialty Scheduled By")
     
     )
     
