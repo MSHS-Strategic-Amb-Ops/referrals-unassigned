@@ -548,7 +548,10 @@ unassigned_referrals <- referral_vol %>%
   filter(ReceivedByDept != "*Unspecified") %>%
   group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
   summarise(total = n()) %>%
-  dplyr::select(-total)
+  dplyr::select(-total) %>%
+  mutate(exclude = case_when(str_detect(ProcedureName, "COLONOSCOPY|NUTRITION") ~ "Exclude",
+                             TRUE ~ "")) %>%
+  filter(exclude != "Exclude")
 
 
 unassigned_referrals_dept <- merge(unassigned_referrals, 
@@ -594,7 +597,10 @@ unassigned_referrals_sent <- referral_vol %>%
   filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
   group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN, SentBySite, SentBySpecialty, SentByDept, SentByDepID, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
   summarise(total = n()) %>%
-  dplyr::select(-total)
+  dplyr::select(-total) %>%
+  mutate(exclude = case_when(str_detect(ProcedureName, "COLONOSCOPY|NUTRITION") ~ "Exclude",
+                             TRUE ~ "")) %>%
+  filter(exclude != "Exclude")
 
 
 unassigned_referrals_dept_sent <- merge(unassigned_referrals_sent, 
@@ -642,7 +648,8 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 *Report Run Date: `r report_run_date`*<br/>
 *Data Date Range: From 2022-04-01 to `r report_run_date - 1`*<br/>
 *Data Source: EPIC Caboodle Referrals Data and Clarity Scheduling Data*<br/>
-*Active unassigned referrals with potential upcoming visits excludes expired referrals and referrals with potential upcoming appointments scheduled for after referral expiration date*<br/>
+*Active unassigned referrals with potential upcoming visits excludes expired referrals and referrals with potential upcoming appointments scheduled for after referral expiration date*
+*Excludes Nutrition and Colonoscopy referrals*<br/>
 
 :::: {.blackbox data-latex=""}
 ::: {.center data-latex=""}
