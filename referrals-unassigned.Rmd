@@ -361,7 +361,7 @@ future_appts <- future_scheduling_raw %>%
 
 # date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 23:59:59")
 date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 00:00:00")
-date_2 <- paste0(format(Sys.Date()- months(6), "%Y-%m-%d"), " 00:00:00")
+date_2 <- paste0(format(Sys.Date() %m-% months(6), "%Y-%m-%d"), " 00:00:00")
 
 past_scheduling_raw <- access_raw_tbl %>%
   filter(is.na(REFERRAL_ID)) %>%
