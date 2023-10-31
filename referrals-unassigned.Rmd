@@ -309,9 +309,9 @@ reporting_monthNum <- format(as.Date(report_run_date), "%m")
 path <- "/nfs/data/Applications/Ambulatory/Data_Updated/"
 # saveRDS(referral_vol, paste0(path,"referral_vol.rds"))
 
-# referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
+referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
 
-referral_vol <- readRDS("referral_vol (3).rds")
+# referral_vol <- readRDS("referral_vol (3).rds")
 
 ```
 
@@ -1503,103 +1503,141 @@ Patient_MRN = colDef(
 <br/>
 
 
-<!-- ## Referrals W/O Referred-To DEP -->
-<!-- ```{r Referrals without referred-to department, echo = FALSE, warning = FALSE, message = FALSE} -->
+## Referrals W/O Referred-To DEP
+```{r Referrals without referred-to department, echo = FALSE, warning = FALSE, message = FALSE}
 
-<!-- unassigned_referrals_no_dept <- referral_vol %>% -->
-<!--   filter(ApptStatusFinal == "Pending") %>% -->
-<!--   filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals -->
-<!--   filter(ReceivedByDept == "*Unspecified") %>% -->
-<!--   group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN,  -->
-<!--            SentBySite, SentBySpecialty, SentByDept, -->
-<!--            ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>% -->
-<!--   summarise(total = n()) %>% -->
-<!--   dplyr::select(-total) %>% -->
-<!--   mutate(exclude = case_when(str_detect(ProcedureName, "COLONOSCOPY|NUTRITION") ~ "Exclude", -->
-<!--                              TRUE ~ "")) %>% -->
-<!--   filter(exclude != "Exclude") -->
-
-
-<!-- # Unassigned Referrals with Potential Future Appts within Same DEP ------------ -->
-<!-- unassigned_referrals_dept <- merge(unassigned_referrals,  -->
-<!--               future_appts %>% filter(appt_dept == 1) %>%  -->
-<!--                 dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID),  -->
-<!--               by.x = c("Patient_MRN", "ReceivedByDepID"), -->
-<!--               by.y = c("MRN", "DEPARTMENT_ID")) -->
-
-<!-- # unassigned_referrals_dept <- unassigned_referrals_dept %>% # Remove upcoming appts beyond referral expiration -->
-<!-- #   filter(as.Date(ExpirationInstant) >= as.Date(APPT_DTTM)) -->
-<!-- # unassigned_referrals_dept$ExpirationInstant <- NULL -->
+unassigned_referrals_no_dept <- referral_vol %>%
+  filter(ApptStatusFinal == "Pending") %>%
+  filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
+  filter(ReceivedByDept == "*Unspecified") %>%
+  group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN,
+           SentBySite, SentBySpecialty, SentByDept,
+           ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
+  summarise(total = n()) %>%
+  dplyr::select(-total) %>%
+  mutate(exclude = case_when(str_detect(ProcedureName, "COLONOSCOPY|NUTRITION") ~ "Exclude",
+                             TRUE ~ "")) %>%
+  filter(exclude != "Exclude")
 
 
 
-<!-- # Unassigned Referrals with Potential Future Appts within Same SPECIALTY ------- -->
-<!-- unassigned_referrals_specialty <- merge(unassigned_referrals,  -->
-<!--               future_appts %>% filter(appt_specialty == 1) %>%  -->
-<!--                 dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID),  -->
-<!--               by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"), -->
-<!--               by.y = c("MRN", "DEPT_SPECIALTY_NAME")) -->
-<!-- # unassigned_referrals_specialty <- unassigned_referrals_specialty %>% # Remove upcoming appts beyond referral expiration -->
-<!-- #   filter(as.Date(ExpirationInstant) >= as.Date(APPT_DTTM)) -->
-<!-- # unassigned_referrals_specialty$ExpirationInstant <- NULL -->
+# Unassigned Referrals with Potential Future Appts within Same SPECIALTY -------
+unassigned_referrals_specialty_no_dept <- merge(unassigned_referrals_no_dept,
+              future_appts %>% filter(appt_specialty == 1) %>%
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID),
+              by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"),
+              by.y = c("MRN", "DEPT_SPECIALTY_NAME")) 
+
+unassigned_referrals_future_appts_no_dept <- left_join(unassigned_referrals_no_dept, unassigned_referrals_specialty_no_dept)
+
+unassigned_referrals_future_appts_no_dept <- unassigned_referrals_future_appts_no_dept %>%
+  rename(future_dept = DEPARTMENT_NAME,
+         future_appt_dttm = APPT_DTTM,
+         future_appt_entry = APPT_ENTRY_USER_NAME_WID)
 
 
-<!-- # Unassigned Referrals with Future Appts within DEP & SPECIALTY Merged --------- -->
-<!-- unassigned_referrals_merged <- bind_rows(unassigned_referrals_dept, unassigned_referrals_specialty) -->
-<!-- unassigned_referrals_merged <- unassigned_referrals_merged %>% -->
-<!--   dplyr::select(-DEPT_SPECIALTY_NAME) %>% -->
-<!--   dplyr::select(-DEPARTMENT_ID) %>% -->
-<!--   distinct() -->
+unassigned_referrals_future_appts_no_dept <- unassigned_referrals_future_appts_no_dept %>%
+  mutate(type = case_when(!is.na(future_dept) ~ "Referrals without referred-to department with upcoming appointments within same specialty",
+                          TRUE ~ ""))
 
-<!-- unassigned_referrals_future_appts <- left_join(unassigned_referrals, unassigned_referrals_merged) -->
+unassigned_referrals_future_appts_no_dept$exclude <- NULL
 
-<!-- unassigned_referrals_future_appts <- unassigned_referrals_future_appts %>% -->
-<!--   rename(future_dept = DEPARTMENT_NAME, -->
-<!--          future_appt_dttm = APPT_DTTM, -->
-<!--          future_appt_entry = APPT_ENTRY_USER_NAME_WID) -->
+# Table output
+htmltools::browsable(
+  tagList(
+    tags$button(
+      tagList(fontawesome::fa("download"), "Download Data (Referrals W/O Referred-To DEP with Potential Upcoming Appointments)"),
+      onclick = "Reactable.downloadDataCSV('without-referred-to-download-table', 'Referrals without Referred-To DEP')"
+    ),
+
+    reactable(
+      unassigned_referrals_future_appts_no_dept %>%
+        filter(!is.na(future_dept)) %>%
+        arrange(SentBySite, SentBySpecialty, SentByDept, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept),
+      style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left", 
+                           headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+    searchable = TRUE,
+    
+    groupBy = c("SentBySite", "SentBySpecialty", "SentByDept"),
+    elementId = "without-referred-to-download-table",
+    
+    columns = list(
+    
+    SentBySite = colDef(
+      # footer = "Total",
+      # name = "Site",
+      minWidth = 180),
+    
+    SentBySpecialty = colDef(
+      # footer = "Total",
+      # name = "Specialty",
+      minWidth = 180),
+    
+    SentByDept = colDef(
+      # footer = "Total",
+      # name = "Department",
+      minWidth = 180),
+    
+    ReceivedBySite = colDef(
+      # footer = "Total",
+      # name = "Site",
+      minWidth = 180),
+    
+    ReferredToDepartmentSpecialty = colDef(
+      # footer = "Total",
+      # name = "Specialty",
+      minWidth = 180),
+    
+    ReceivedByDept = colDef(
+      # footer = "Total",
+      # name = "Department",
+      minWidth = 180),
+    
+Patient_MRN = colDef(
+      # footer = "Total",
+      name = "Patient MRN"),
+    
+    StartInstant = colDef(
+      # footer = "Total",
+      name = "Referral Created Date"),
+    
+    ProcedureName = colDef(
+      # footer = "Total",
+      name = "Procedure Name"),
+    
+    future_dept = colDef(
+      # footer = "Total",
+      name = "Upcoming Appt Scheduled Department"),
+    
+    future_appt_dttm = colDef(
+      # footer = "Total",
+      name = "Upcoming Appt Scheduled DateTime"),
+    
+    future_appt_entry = colDef(
+      # footer = "Total",
+      name = "Upcoming Appt Scheduled By"),
+    
+    type = colDef(
+      # footer = "Total",
+      minWidth = 300,
+      name = "Type")
+    
+    )
+
+    )
+  )
+)
 
 
-
-<!-- # Unassigned Referrals with Potential Past Appts within Same DEP ------------ -->
-<!-- unassigned_referrals_dept_past <- merge(unassigned_referrals,  -->
-<!--               past_appts %>% filter(appt_dept == 1) %>%  -->
-<!--                 dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID),  -->
-<!--               by.x = c("Patient_MRN", "ReceivedByDepID"), -->
-<!--               by.y = c("MRN", "DEPARTMENT_ID")) -->
-
-
-<!-- # Unassigned Referrals with Potential Past Appts within Same SPECIALTY ------- -->
-<!-- unassigned_referrals_specialty_past <- merge(unassigned_referrals,  -->
-<!--               past_appts %>% filter(appt_specialty == 1) %>%  -->
-<!--                 dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID),  -->
-<!--               by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"), -->
-<!--               by.y = c("MRN", "DEPT_SPECIALTY_NAME")) -->
-
-
-<!-- # Unassigned Referrals with Past Appts within DEP & SPECIALTY Merged --------- -->
-<!-- unassigned_referrals_merged_past <- bind_rows(unassigned_referrals_dept_past, unassigned_referrals_specialty_past) -->
-<!-- unassigned_referrals_merged_past <- unassigned_referrals_merged_past %>% -->
-<!--   dplyr::select(-DEPT_SPECIALTY_NAME) %>% -->
-<!--   dplyr::select(-DEPARTMENT_ID) %>% -->
-<!--   distinct() -->
-
-
-<!-- unassigned_referrals_appts_merged <- left_join(unassigned_referrals_future_appts, unassigned_referrals_merged_past) -->
-
-<!-- unassigned_referrals_appts_merged <- unassigned_referrals_appts_merged %>% -->
-<!--   rename(past_dept = DEPARTMENT_NAME, -->
-<!--          past_appt_dttm = APPT_DTTM, -->
-<!--          past_appt_entry = APPT_ENTRY_USER_NAME_WID) -->
-
-
-<!-- unassigned_referrals_appts_merged <- unassigned_referrals_appts_merged %>% -->
-<!--   mutate(type = case_when(!is.na(future_dept) & ReceivedByDept == future_dept ~ "Upcoming appt in same department", -->
-<!--                           !is.na(future_dept) ~ "Upcoming appt in same specialty", -->
-<!--                           !is.na(past_dept) & ReceivedByDept == past_dept ~ "Past appt in same department", -->
-<!--                           !is.na(past_dept) & ReceivedByDept == past_dept ~ "Past appt in same specialty", -->
-<!--                           TRUE ~ "")) -->
-
-<!-- ``` -->
+```
 
 
 
