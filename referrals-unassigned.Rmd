@@ -311,8 +311,6 @@ path <- "/nfs/data/Applications/Ambulatory/Data_Updated/"
 
 referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
 
-referral_vol <- referral_vol %>%
-  filter(as.Date(ExpirationInstant) >= report_run_date)
 
 # referral_vol <- readRDS("referral_vol (3).rds")
 
