@@ -399,7 +399,8 @@ unassigned_referrals <- referral_vol %>%
   dplyr::select(-total) %>%
   mutate(exclude = case_when(str_detect(ProcedureName, "COLONOSCOPY|NUTRITION") ~ "Exclude",
                              TRUE ~ "")) %>%
-  filter(exclude != "Exclude")
+  filter(exclude != "Exclude") %>%
+  mutate(ExpirationInstant = as.character(ExpirationInstant))
 
 
 # Unassigned Referrals with Potential Future Appts within Same DEP ------------
