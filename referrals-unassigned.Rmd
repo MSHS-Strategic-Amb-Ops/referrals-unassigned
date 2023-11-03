@@ -550,7 +550,7 @@ referrals_summary_site <- referrals_summary_site %>%
   mutate(expired_unassigned_perc = round(expired_unassigned/Total,2))
 
 unassigned_referrals_future_appts_summary <- unassigned_referrals_appts_merged %>%
-  filter(ExpirationInstant >= Sys.Date()) %>%
+  filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
   filter(!is.na(future_dept)) %>%
   group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ReferralEpicId) %>%
   summarise(total = n()) %>%
@@ -561,7 +561,7 @@ unassigned_referrals_future_appts_summary <- unassigned_referrals_appts_merged %
 referrals_summary_site <- merge(referrals_summary_site, unassigned_referrals_future_appts_summary)
 
 unassigned_referrals_past_appts_summary <- unassigned_referrals_appts_merged %>%
-  filter(ExpirationInstant >= Sys.Date()) %>%
+  filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
   filter(is.na(future_dept)) %>%
   filter(!is.na(past_dept)) %>%
   group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ReferralEpicId) %>%
@@ -833,7 +833,7 @@ referrals_summary_site_sent <- referrals_summary_site_sent %>%
   mutate(expired_unassigned_perc = round(expired_unassigned/Total,2))
 
 unassigned_referrals_future_appts_summary_sent <- unassigned_referrals_sent %>%
-  filter(ExpirationInstant >= Sys.Date()) %>%
+  filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
   filter(!is.na(future_dept)) %>%
   group_by(SentBySite, SentBySpecialty, ReferralEpicId) %>%
   summarise(total = n()) %>%
@@ -844,7 +844,7 @@ unassigned_referrals_future_appts_summary_sent <- unassigned_referrals_sent %>%
 referrals_summary_site_sent <- merge(referrals_summary_site_sent, unassigned_referrals_future_appts_summary_sent)
 
 unassigned_referrals_past_appts_summary_sent <- unassigned_referrals_sent %>%
-  filter(ExpirationInstant >= Sys.Date()) %>%
+  filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
   filter(is.na(future_dept)) %>%
   filter(!is.na(past_dept)) %>%
   group_by(SentBySite, SentBySpecialty, ReferralEpicId) %>%
