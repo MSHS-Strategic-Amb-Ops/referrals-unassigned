@@ -457,6 +457,7 @@ unassigned_referrals_dept_past <- merge(unassigned_referrals,
               by.x = c("Patient_MRN", "ReceivedByDepID"),
               by.y = c("MRN", "DEPARTMENT_ID")) %>%
   mutate(lead_days = as.Date(StartInstant) - as.Date(APPT_DTTM)) %>%
+  filter(lead_days >= 0) %>%
   filter(lead_days <= 180) %>%
   dplyr::select(-lead_days)
 
@@ -468,6 +469,7 @@ unassigned_referrals_specialty_past <- merge(unassigned_referrals,
               by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"),
               by.y = c("MRN", "DEPT_SPECIALTY_NAME")) %>%
   mutate(lead_days = as.Date(StartInstant) - as.Date(APPT_DTTM)) %>%
+  filter(lead_days >= 0) %>%
   filter(lead_days <= 180) %>%
   dplyr::select(-lead_days)
 
