@@ -398,6 +398,12 @@ unassigned_referrals <- referral_vol %>%
   group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
   summarise(total = n()) %>%
   dplyr::select(-total) %>%
+  filter(ProcedureName %!in% c("AMB REF TO REGISTERED DIETICIAN",
+                               "AMB REF TO EXTERNAL PHYSICAL THERAPY",
+                               "AMB REF TO EXTERNAL OCCUPATIONAL THERAPY",
+                               "AMB REF TO EXTERNAL SPEECH THERAPY",
+                               "AMB REF TO EXTERNAL DENTAL",
+                               "AMB REF TO WIC")) %>%
   mutate(exclude = case_when(str_detect(ProcedureName, "COLONOSCOPY|NUTRITION") ~ "Exclude",
                              TRUE ~ "")) %>%
   filter(exclude != "Exclude") %>%
