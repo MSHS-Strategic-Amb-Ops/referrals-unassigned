@@ -1294,15 +1294,19 @@ unassigned_output <- unassigned_referrals_appts_merged %>%
     arrange(ReferralEpicId, Patient_MRN) %>%
     rename(Upcoming_Appt_Dept = future_dept,
            Upcoming_Appt_DTTM = future_appt_dttm,
+           Upcoming_Appt_Provider = future_appt_provider,
+           Upcoming_Appt_Name = future_appt_name,
            Upcoming_Appt_ScheduledBy = future_appt_entry,
            Completed_Appt_Dept = past_dept,
            Completed_Appt_DTTM = past_appt_dttm,
+           Completed_Appt_Provider = past_appt_provider,
+           Completed_Appt_Name = past_appt_name,
            Completed_Appt_ScheduledBy = past_appt_entry)%>%
     mutate(Upcoming_Appt_DTTM = as.character(Upcoming_Appt_DTTM),
            Completed_Appt_DTTM = as.character(Completed_Appt_DTTM)) %>%
   dplyr::select(StartInstant, ReferralEpicId, Patient_MRN, ProcedureName, ReceivedBySite, ReferredToDepartmentSpecialty, 
-                ReceivedByDept, Upcoming_Appt_Dept, Upcoming_Appt_DTTM, Upcoming_Appt_ScheduledBy,
-                Completed_Appt_Dept, Completed_Appt_DTTM, Completed_Appt_ScheduledBy, type)
+                ReceivedByDept, Upcoming_Appt_Dept, Upcoming_Appt_DTTM, Upcoming_Appt_Provider, Upcoming_Appt_Name, Upcoming_Appt_ScheduledBy,
+                Completed_Appt_Dept, Completed_Appt_DTTM, Completed_Appt_Provider, Completed_Appt_Name, Completed_Appt_ScheduledBy, type)
 
 
 htmltools::browsable(
@@ -1367,6 +1371,14 @@ htmltools::browsable(
       # footer = "Total",
       name = "Upcoming Appt Scheduled DateTime"),
     
+    Upcoming_Appt_Provider = colDef(
+      # footer = "Total",
+      name = "Upcoming Appt Scheduled Provider"),
+    
+    Upcoming_Appt_Name = colDef(
+      # footer = "Total",
+      name = "Upcoming Appt Name"),
+    
     Upcoming_Appt_ScheduledBy = colDef(
       # footer = "Total",
       name = "Upcoming Appt Scheduled By"),
@@ -1378,6 +1390,14 @@ htmltools::browsable(
     Completed_Appt_DTTM = colDef(
       # footer = "Total",
       name = "Completed Appt Scheduled DateTime"),
+    
+    Completed_Appt_Provider = colDef(
+      # footer = "Total",
+      name = "Completed Appt Scheduled Provider"),
+    
+    Completed_Appt_Name = colDef(
+      # footer = "Total",
+      name = "Completed Appt Name"),
     
     Completed_Appt_ScheduledBy = colDef(
       # footer = "Total",
@@ -1408,17 +1428,21 @@ unassigned_output_sent <- unassigned_referrals_sent %>%
     arrange(ReferralEpicId, Patient_MRN) %>%
     rename(Upcoming_Appt_Dept = future_dept,
            Upcoming_Appt_DTTM = future_appt_dttm,
+           Upcoming_Appt_Provider = future_appt_provider,
+           Upcoming_Appt_Name = future_appt_name,
            Upcoming_Appt_ScheduledBy = future_appt_entry,
            Completed_Appt_Dept = past_dept,
            Completed_Appt_DTTM = past_appt_dttm,
+           Completed_Appt_Provider = past_appt_provider,
+           Completed_Appt_Name = past_appt_name,
            Completed_Appt_ScheduledBy = past_appt_entry)%>%
     mutate(Upcoming_Appt_DTTM = as.character(Upcoming_Appt_DTTM),
            Completed_Appt_DTTM = as.character(Completed_Appt_DTTM)) %>%
   dplyr::select(StartInstant, ReferralEpicId, Patient_MRN, ProcedureName, 
                 SentBySite, SentBySpecialty, SentByDept,
                 ReceivedBySite, ReferredToDepartmentSpecialty, 
-                ReceivedByDept, Upcoming_Appt_Dept, Upcoming_Appt_DTTM, Upcoming_Appt_ScheduledBy,
-                Completed_Appt_Dept, Completed_Appt_DTTM, Completed_Appt_ScheduledBy, type)
+                ReceivedByDept, Upcoming_Appt_Dept, Upcoming_Appt_DTTM, Upcoming_Appt_Provider, Upcoming_Appt_Name, Upcoming_Appt_ScheduledBy,
+                Completed_Appt_Dept, Completed_Appt_DTTM, Completed_Appt_Provider, Completed_Appt_Name, Completed_Appt_ScheduledBy, type)
 
 
 
@@ -1500,6 +1524,14 @@ Patient_MRN = colDef(
       # footer = "Total",
       name = "Upcoming Appt Scheduled DateTime"),
     
+    Upcoming_Appt_Provider = colDef(
+      # footer = "Total",
+      name = "Upcoming Appt Scheduled Provider"),
+    
+    Upcoming_Appt_Name = colDef(
+      # footer = "Total",
+      name = "Upcoming Appt Name"),
+    
     Upcoming_Appt_ScheduledBy = colDef(
       # footer = "Total",
       name = "Upcoming Appt Scheduled By"),
@@ -1511,6 +1543,14 @@ Patient_MRN = colDef(
     Completed_Appt_DTTM = colDef(
       # footer = "Total",
       name = "Completed Appt Scheduled DateTime"),
+    
+    Completed_Appt_Provider = colDef(
+      # footer = "Total",
+      name = "Completed Appt Scheduled Provider"),
+    
+    Completed_Appt_Name = colDef(
+      # footer = "Total",
+      name = "Completed Appt Name"),
     
     Completed_Appt_ScheduledBy = colDef(
       # footer = "Total",
