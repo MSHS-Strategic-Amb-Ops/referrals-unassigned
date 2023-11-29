@@ -336,7 +336,7 @@ date_1 <- paste0(format(Sys.Date(), "%Y-%m-%d"), " 00:00:00")
 
 future_scheduling_raw <- access_raw_tbl %>%
   filter(TO_DATE(date_1,"YYYY-MM-DD HH24:MI:SS") <= APPT_DTTM) %>%
-  group_by(SITE, DEPT_SPECIALTY_NAME, DEPARTMENT_NAME, DEPARTMENT_ID, MRN, PAT_NAME, PAT_ENC_CSN_ID, REFERRAL_ID, 
+  group_by(SITE, DEPT_SPECIALTY_NAME, DEPARTMENT_NAME, DEPARTMENT_ID, PROV_NAME_WID, MRN, PAT_NAME, PAT_ENC_CSN_ID, REFERRAL_ID, 
            APPT_ENTRY_USER_NAME_WID, APPT_MADE_DTTM, APPT_DTTM, PRC_NAME, DERIVED_STATUS_DESC) %>%
   summarise(total = n()) %>%
   collect() 
@@ -370,7 +370,7 @@ past_scheduling_raw <- access_raw_tbl %>%
   filter(DERIVED_STATUS_DESC == "Arrived") %>%
   filter(TO_DATE(date_1,"YYYY-MM-DD HH24:MI:SS") > APPT_DTTM) %>%
   filter(TO_DATE(date_2,"YYYY-MM-DD HH24:MI:SS") <= APPT_DTTM) %>%
-  group_by(SITE, DEPT_SPECIALTY_NAME, DEPARTMENT_NAME, DEPARTMENT_ID, MRN, PAT_NAME, PAT_ENC_CSN_ID, REFERRAL_ID, 
+  group_by(SITE, DEPT_SPECIALTY_NAME, DEPARTMENT_NAME, DEPARTMENT_ID, PROV_NAME_WID, MRN, PAT_NAME, PAT_ENC_CSN_ID, REFERRAL_ID, 
            APPT_ENTRY_USER_NAME_WID, APPT_MADE_DTTM, APPT_DTTM, PRC_NAME, DERIVED_STATUS_DESC) %>%
   summarise(total = n()) %>%
   collect() 
@@ -395,7 +395,8 @@ unassigned_referrals <- referral_vol %>%
   filter(ApptStatusFinal == "Pending") %>%
   filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
   filter(ReceivedByDept != "*Unspecified") %>%
-  group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN, ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
+  group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN, 
+           ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID, ReceivedByProvider) %>%
   summarise(total = n()) %>%
   dplyr::select(-total) %>%
   filter(ProcedureName %!in% c("AMB REF TO REGISTERED DIETICIAN",
@@ -413,7 +414,7 @@ unassigned_referrals <- referral_vol %>%
 # Unassigned Referrals with Potential Future Appts within Same DEP ------------
 unassigned_referrals_dept <- merge(unassigned_referrals, 
               future_appts %>% filter(appt_dept == 1) %>% 
-                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID), 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, PROV_NAME_WID, PRC_NAME, APPT_ENTRY_USER_NAME_WID), 
               by.x = c("Patient_MRN", "ReceivedByDepID"),
               by.y = c("MRN", "DEPARTMENT_ID")) %>%
   mutate(lead_days = as.Date(APPT_DTTM) - as.Date(StartInstant)) %>%
@@ -429,7 +430,7 @@ unassigned_referrals_dept <- merge(unassigned_referrals,
 # Unassigned Referrals with Potential Future Appts within Same SPECIALTY -------
 unassigned_referrals_specialty <- merge(unassigned_referrals, 
               future_appts %>% filter(appt_specialty == 1) %>% 
-                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID), 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, PROV_NAME_WID, PRC_NAME, APPT_ENTRY_USER_NAME_WID), 
               by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"),
               by.y = c("MRN", "DEPT_SPECIALTY_NAME")) %>%
   mutate(lead_days = as.Date(APPT_DTTM) - as.Date(StartInstant)) %>%
@@ -452,6 +453,8 @@ unassigned_referrals_future_appts <- left_join(unassigned_referrals, unassigned_
 unassigned_referrals_future_appts <- unassigned_referrals_future_appts %>%
   rename(future_dept = DEPARTMENT_NAME,
          future_appt_dttm = APPT_DTTM,
+         future_appt_provider = PROV_NAME_WID,
+         future_appt_name = PRC_NAME,
          future_appt_entry = APPT_ENTRY_USER_NAME_WID)
   
 
@@ -493,6 +496,8 @@ unassigned_referrals_appts_merged <- left_join(unassigned_referrals_future_appts
 unassigned_referrals_appts_merged <- unassigned_referrals_appts_merged %>%
   rename(past_dept = DEPARTMENT_NAME,
          past_appt_dttm = APPT_DTTM,
+         past_appt_provider = PROV_NAME_WID,
+         past_appt_name = PRC_NAME,
          past_appt_entry = APPT_ENTRY_USER_NAME_WID)
 
 
