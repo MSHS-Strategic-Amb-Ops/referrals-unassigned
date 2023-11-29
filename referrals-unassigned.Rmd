@@ -462,7 +462,7 @@ unassigned_referrals_future_appts <- unassigned_referrals_future_appts %>%
 # Unassigned Referrals with Potential Past Appts within Same DEP ------------
 unassigned_referrals_dept_past <- merge(unassigned_referrals, 
               past_appts %>% filter(appt_dept == 1) %>% 
-                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID), 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, PROV_NAME_WID, PRC_NAME, APPT_ENTRY_USER_NAME_WID), 
               by.x = c("Patient_MRN", "ReceivedByDepID"),
               by.y = c("MRN", "DEPARTMENT_ID")) %>%
   mutate(lead_days = as.Date(APPT_DTTM) - as.Date(StartInstant)) %>%
@@ -474,7 +474,7 @@ unassigned_referrals_dept_past <- merge(unassigned_referrals,
 # Unassigned Referrals with Potential Past Appts within Same SPECIALTY -------
 unassigned_referrals_specialty_past <- merge(unassigned_referrals, 
               past_appts %>% filter(appt_specialty == 1) %>% 
-                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, APPT_ENTRY_USER_NAME_WID), 
+                dplyr::select(MRN, DEPT_SPECIALTY_NAME, DEPARTMENT_ID, DEPARTMENT_NAME, APPT_DTTM, PROV_NAME_WID, PRC_NAME, APPT_ENTRY_USER_NAME_WID), 
               by.x = c("Patient_MRN", "ReferredToDepartmentSpecialty"),
               by.y = c("MRN", "DEPT_SPECIALTY_NAME")) %>%
   mutate(lead_days = as.Date(APPT_DTTM) - as.Date(StartInstant)) %>%
