@@ -341,6 +341,7 @@ future_scheduling_raw <- access_raw_tbl %>%
   summarise(total = n()) %>%
   collect() 
 
+future_scheduling_raw$PROV_NAME_WID <- trimws(gsub("\\[.*?\\]", "", future_scheduling_raw$PROV_NAME_WID))
 
 # Referrals with FUTURE appointments within the same department/specialty
 future_appts <- future_scheduling_raw %>%
@@ -375,6 +376,7 @@ past_scheduling_raw <- access_raw_tbl %>%
   summarise(total = n()) %>%
   collect() 
 
+past_scheduling_raw$PROV_NAME_WID <- trimws(gsub("\\[.*?\\]", "", past_scheduling_raw$PROV_NAME_WID))
 
 # Referrals with FUTURE appointments within the same department/specialty
 past_appts <- past_scheduling_raw %>%
