@@ -1307,7 +1307,7 @@ unassigned_output <- unassigned_referrals_appts_merged %>%
     mutate(Upcoming_Appt_DTTM = as.character(Upcoming_Appt_DTTM),
            Completed_Appt_DTTM = as.character(Completed_Appt_DTTM)) %>%
   dplyr::select(StartInstant, ReferralEpicId, Patient_MRN, ProcedureName, ReceivedBySite, ReferredToDepartmentSpecialty, 
-                ReceivedByDept, Upcoming_Appt_Dept, Upcoming_Appt_DTTM, Upcoming_Appt_Provider, Upcoming_Appt_Name, Upcoming_Appt_ScheduledBy,
+                ReceivedByDept, ReceivedByProvider, Upcoming_Appt_Dept, Upcoming_Appt_DTTM, Upcoming_Appt_Provider, Upcoming_Appt_Name, Upcoming_Appt_ScheduledBy,
                 Completed_Appt_Dept, Completed_Appt_DTTM, Completed_Appt_Provider, Completed_Appt_Name, Completed_Appt_ScheduledBy, type)
 
 
@@ -1349,6 +1349,11 @@ htmltools::browsable(
       minWidth = 180),
     
     ReceivedByDept = colDef(
+      # footer = "Total",
+      # name = "Department",
+      minWidth = 180),
+    
+    ReceivedByProvider = colDef(
       # footer = "Total",
       # name = "Department",
       minWidth = 180),
