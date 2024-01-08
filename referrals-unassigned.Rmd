@@ -393,7 +393,14 @@ past_appts <- past_scheduling_raw %>%
 
 ```{r Unassigned Referrals Received, echo = FALSE, warning = FALSE, message = FALSE}
 
+# Exclude referrals that do not result in appts -------------------------------
+referrals_excl <- c("AMB REF TO ADOL HEALTH HEALTH EDUCATION",
+                    "AMB REF TO ADOL HEALTH PSYCHIATRY",
+                    "AMB REF TO AHC PSYCHOLOGY TESTING")
+
+
 unassigned_referrals <- referral_vol %>%
+  filter(ProcedureName %!in% referrals_excl) %>%
   filter(ApptStatusFinal == "Pending") %>%
   filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
   filter(ReceivedByDept != "*Unspecified") %>%
