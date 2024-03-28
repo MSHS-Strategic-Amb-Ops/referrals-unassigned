@@ -309,11 +309,161 @@ reporting_monthNum <- format(as.Date(report_run_date), "%m")
 path <- "/nfs/data/Applications/Ambulatory/Data_Updated/"
 # saveRDS(referral_vol, paste0(path,"referral_vol.rds"))
 
-referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
+# referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
 
 
 # referral_vol <- readRDS("referral_vol (3).rds")
 
+```
+
+
+```{r Referrals Data Importing, echo = FALSE, warning = FALSE, message = FALSE}
+
+report_run_date <- Sys.Date()
+
+# Connect to Database ----------------------------------------------------------
+# conn1 <- odbcConnect("Caboodle") # Connect to Server
+
+conn1 <- dbPool(drv = odbc(), dsn = "Caboodle", timeout = 30)
+
+# Import Referrals+Visit Data --------------------------------------------------
+referrals_conn <- tbl(conn1, "Referrals")
+referrals_raw <- referrals_conn %>%
+  mutate(StartInstant = as.Date(StartInstant)) %>%
+  filter(StartInstant >= as.Date("2022-04-01") & StartInstant < report_run_date) %>%
+  filter(Status != "Canceled") %>%
+  collect()
+
+# dep <- referrals_conn %>%
+#   group_by(ReceivedBySite, ReceivedByDept) %>%
+#   summarise(total = n()) %>%
+#   collect()
+
+# Import Referrals Data for Addtional Referral Details -------------------------
+# referralFactAll <- sqlQuery(conn1, "SELECT TOP 10* FROM PRDREPORT.FullAccess.ReferralFact")
+referralFact_conn <- tbl(conn1, "ReferralFact")
+
+referralFact_raw <- referralFact_conn %>%
+  # head(1000) %>%
+  # collect()
+  mutate(StartInstant = as.Date(StartInstant)) %>%
+  filter(StartInstant >= as.Date("2022-04-01") & StartInstant <= report_run_date) %>%
+  group_by(ReferralKey, ReferredToDepartmentSpecialty, StartInstant, `_CreationInstant`, `_LastUpdatedInstant`, LastEnteredWorkqueueDateKey_X,
+           LastEnteredWorkqueueTimeKey_X, LastEnteredWorkqueueName_X,
+           Class, Priority, Redirected, Rejected, TriageRejectionReason, InAnyWorkqueue, StatusReason, SchedulingStatus,
+           FirstCallMadeInstant, FirstEncounterCreatedInstant, FirstEncounterInstant, ExpirationInstant,
+           WasPatientContactedWithin12Hours_X,
+           ProfessionalChargeAmount, ProfessionalChargeEstimate, HospitalChargeEstimate,
+           PrimaryCoverageKey) %>%
+  summarise(total = n()) %>%
+  # left_join(coverage_payor_plan_tbl, 
+  #           by = "COVERAGE_ID",
+  #           copy = TRUE) %>%
+  collect()
+
+referralFact_raw$total <- NULL
+
+# referralFact_all <- referralFact_conn %>%
+#   mutate(StartInstant = as.Date(StartInstant)) %>%
+#   filter(StartInstant == as.Date("2022-11-03")) %>%
+#   collect()
+
+visitFact_conn <- tbl(conn1, "VisitFact")
+visitFact_raw <- visitFact_conn %>%
+  filter(ReferralKey >0) %>%
+  group_by(ReferralKey, AppointmentStatus, AppointmentCreationDateKey, AppointmentCancellationDateKey) %>%
+  summarise(total = n()) %>%
+  collect() %>%
+  group_by(ReferralKey) %>%
+  mutate(first_appt = as.Date(as.character(min(AppointmentCreationDateKey)),  format = "%Y%m%d"))
+
+
+# Append Additional Referral Columns -------------------------------------------
+referrals_merged <- left_join(referrals_raw, subset(referralFact_raw, select = -c(StartInstant, Priority)))
+referrals_merged <- referrals_merged %>%
+  mutate(SentByDepID = as.character(SentByDepID),
+         ReceivedByDepID = as.character(ReceivedByDepID))
+
+
+```
+
+```{r Referrals Data Processing, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Referrals Raw Data Processing ------------------------------------------------
+# Priority Groups =============================================================
+referrals_merged <- referrals_merged %>%
+  mutate(createdWeek = floor_date(as.Date(StartInstant, "%Y-%m-%d"), unit="week", week_start = 7),
+         createdYear = format(as.Date(StartInstant, "%Y-%m-%d"),"%Y"),
+         createdMonNum = as.numeric(format(as.Date(StartInstant, "%Y-%m-%d"),"%m")),
+         createdMonth = format(as.Date(StartInstant, "%Y-%m-%d"),"%B"),
+         createdMonthYear = format(as.Date(StartInstant, "%Y-%m-%d"),"%m-%Y")) %>%
+  mutate(priority_type = case_when(str_detect(toupper(Priority), "CONVENIENCE") ~ "Patient Convenience"
+                                   ,str_detect(toupper(Priority), "2 DAYS") ~ "Within 2 Days"
+                                   ,str_detect(toupper(Priority), "1 WEEK") ~ "Within 1 Week"
+                                   ,str_detect(toupper(Priority), "2 WEEKS") ~ "Within 2 Weeks"
+                                   ,str_detect(toupper(Priority), "3-6 Days") ~ "Within 1 Week" # Question: Should this be separate category?
+                                   ,str_detect(toupper(Priority), "7-14 Days") ~ "Within 2 Weeks"
+                                   ,Priority == "Routine" ~ "Routine"
+                                   ,TRUE ~ "Not Specified"))
+
+```
+
+```{r Unique Referral Volume Data, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Unique Referrals by Appointment Status -------------------------------------------------------
+referrals_processed <- referrals_merged %>%
+  group_by(ReferralKey) %>%
+  mutate(ApptStatusFinal = NA) %>%
+  mutate(ApptStatusFinal = case_when((is.na(ApptStatusFinal) & any(AppointmentStatus %in% c("Arrived","Completed"))) ~ "Arrived"
+                                     ,(is.na(ApptStatusFinal) & any(AppointmentStatus %in% c("No Show", "Left without seen"))) ~ "No Show"
+                                     ,(is.na(ApptStatusFinal) & any(AppointmentStatus == "Canceled")) ~ "Canceled"
+                                     ,(is.na(ApptStatusFinal) & any(AppointmentStatus %in% c("Scheduled","Confirmed"))) ~ "Scheduled"
+                                     ,TRUE ~ "Pending"))
+
+
+# Unique Referral Volume by Appointment Status (Department) -------------------------------------------------
+referral_vol <- referrals_processed %>%
+  group_by(SentBySite, SentByDepID, SentByDept, SentBySpecialty, SentByProvider, SentByProvNPI,
+           ReceivedBySite, ReceivedByDepID, ReceivedByDept, ReceivedBySpecialty, ReferredToDepartmentSpecialty, ReceivedByProvider, ReceivedByProvNPI,
+           StartInstant, createdYear, createdMonthYear, createdMonNum, createdMonth, createdWeek, ReferralKey, ReferralEpicId, ProcedureName, priority_type, ApptStatusFinal,
+           Class, WasPatientContactedWithin12Hours_X, CreationToFirstEncounterDate, ExpirationInstant,
+           ProfessionalChargeEstimate, HospitalChargeEstimate, Redirected, Rejected, TriageRejectionReason, InAnyWorkqueue,
+           Patient_MRN, ICD_10_Chosen,
+           Status, CloseReason, SchedulingStatus) %>%
+  summarise(total = n()) %>%
+  # mutate(SentBySpecialty = case_when(SentByDept %in% c("MS EPICCARE LINK","MS RYAN CENTER LINK") ~ "ECL"
+  #                               # ,str_detect(toupper(SentByDept), "EMERGENCY") ~ "ED"
+  #                               # ,SentByDept == "EMERGENCY DEPARTMENT PSYCH" ~ "ED Psych"
+  #                               # ,SentByDept == "CPEP PSYCH ED BI" ~ "ED Psych"
+  #                               , TRUE ~ SentBySpecialty)) %>%
+  mutate(SentBySite = case_when(SentByDept %in% c("MS RYAN CENTER LINK") ~ "RYAN CENTER"
+                                     # ,SentByDept == "EMERGENCY DEPT BI" ~ "MSBI"
+                                     # ,SentByDept == "EMERGENCY DEPT MORNINGSIDE" ~ "MSM"
+                                     # ,SentByDept == "EMERGENCY DEPT WEST" ~ "MSW"
+                                     # ,SentByDept == "EMERGENCY DEPARTMENT" ~ "MSH"
+                                     # ,SentByDept == "EMERGENCY DEPT QUEENS" ~ "MSQ"
+                                     # ,SentByDept == "EMERGENCY DEPT BI BROOKLYN" ~ "MSB"
+                                     # ,SentByDept == "EMERGENCY DEPARTMENT PSYCH" ~ "MSH"
+                                     # ,SentByDept == "CPEP PSYCH ED BI" ~ "MSBI"
+                                     ,TRUE ~ SentBySite))
+
+referral_vol$referral_age <- difftime(report_run_date-1, as.Date(referral_vol$StartInstant, "%Y-%m%-%d"), units = "days")
+
+
+# Merge Appointment Scheduled Date 
+referral_vol$first_appt_created <- visitFact_raw$first_appt[match(referral_vol$ReferralKey, visitFact_raw$ReferralKey)]
+referral_vol <- referral_vol %>%
+  mutate(scheduledWeek = floor_date(as.Date(first_appt_created, "%Y-%m-%d"), unit="week", week_start = 7),
+         scheduledYear = format(as.Date(first_appt_created, "%Y-%m-%d"),"%Y"),
+         scheduledMonNum = as.numeric(format(as.Date(first_appt_created, "%Y-%m-%d"),"%m")),
+         scheduledMonth = format(as.Date(first_appt_created, "%Y-%m-%d"),"%B"),
+         scheduledMonthYear = format(as.Date(first_appt_created, "%Y-%m-%d"),"%m-%Y"),
+         scheduledYearMonth = format(as.Date(first_appt_created, "%Y-%m-%d"),"%Y-%m")) 
+  # mutate(leadDays = difftime(StartInstant, first_appt_created, units = "days")) 
+
+
+# saveRDS(referral_vol, "referral_vol.rds")
+# referral_vol <- readRDS("referral_vol.rds")
 ```
 
 
@@ -396,7 +546,14 @@ past_appts <- past_scheduling_raw %>%
 # Exclude referrals that do not result in appts -------------------------------
 referrals_excl <- c("AMB REF TO ADOL HEALTH HEALTH EDUCATION",
                     "AMB REF TO ADOL HEALTH PSYCHIATRY",
-                    "AMB REF TO AHC PSYCHOLOGY TESTING")
+                    "AMB REF TO AHC PSYCHOLOGY TESTING",
+                    "AMB REF TO REGISTERED DIETICIAN",
+                    "AMB REF TO EXTERNAL PHYSICAL THERAPY",
+                    "AMB REF TO EXTERNAL OCCUPATIONAL THERAPY",
+                    "AMB REF TO EXTERNAL SPEECH THERAPY",
+                    "AMB REF TO EXTERNAL DENTAL",
+                    "AMB REF TO WIC")
+
 
 
 unassigned_referrals <- referral_vol %>%
@@ -404,19 +561,13 @@ unassigned_referrals <- referral_vol %>%
   filter(ApptStatusFinal == "Pending") %>%
   filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
   filter(ReceivedByDept != "*Unspecified") %>%
+  filter(Class != "Outgoing") %>%
+  filter(Status != "Denied") %>%
+  filter(str_detect(ProcedureName, "COLONOSCOPY|NUTRITION") == FALSE) %>%
   group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN, 
-           ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID, ReceivedByProvider) %>%
+           ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID, ReceivedByProvider, Status) %>%
   summarise(total = n()) %>%
   dplyr::select(-total) %>%
-  filter(ProcedureName %!in% c("AMB REF TO REGISTERED DIETICIAN",
-                               "AMB REF TO EXTERNAL PHYSICAL THERAPY",
-                               "AMB REF TO EXTERNAL OCCUPATIONAL THERAPY",
-                               "AMB REF TO EXTERNAL SPEECH THERAPY",
-                               "AMB REF TO EXTERNAL DENTAL",
-                               "AMB REF TO WIC")) %>%
-  mutate(exclude = case_when(str_detect(ProcedureName, "COLONOSCOPY|NUTRITION") ~ "Exclude",
-                             TRUE ~ "")) %>%
-  filter(exclude != "Exclude") %>%
   mutate(ExpirationInstant = as.character(ExpirationInstant))
 
 
@@ -538,6 +689,7 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 *Data Source: EPIC Caboodle Referrals Data and Clarity Scheduling Data*<br/>
 *Active unassigned referrals with potential upcoming visits excludes expired referrals and referrals with potential upcoming appointments scheduled for after referral expiration date*
 *Excludes Nutrition and Colonoscopy referrals*<br/>
+*Excludes "Outgoing" and "Denied" referrals*<br/>
 
 :::: {.blackbox data-latex=""}
 ::: {.center data-latex=""}
@@ -556,6 +708,9 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 ```{r Referrals Received Output, echo = FALSE, warning = FALSE, message = FALSE}
 
 referrals_summary_site <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(Class != "Outgoing") %>%
+  filter(Status != "Denied") %>%
   group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ApptStatusFinal) %>%
   summarise(total = n()) %>%
   pivot_wider(names_from = ApptStatusFinal,
@@ -569,6 +724,9 @@ referrals_summary_site <- referral_vol %>%
          unassigned_perc = round(Pending/ Total,2))
 
 expired_summary_site <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(Class != "Outgoing") %>%
+  filter(Status != "Denied") %>%
   filter(ExpirationInstant < report_run_date) %>%
   group_by(ReceivedBySite, ReferredToDepartmentSpecialty, ApptStatusFinal) %>%
   summarise(total = n()) %>%
@@ -839,6 +997,9 @@ reactable(
 ```{r Referrals Sent Output, echo = FALSE, warning = FALSE, message = FALSE}
 
 referrals_summary_site_sent <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(Class != "Outgoing") %>%
+  filter(Status != "Denied") %>%
   group_by(SentBySite, SentBySpecialty, ApptStatusFinal) %>%
   summarise(total = n()) %>%
   pivot_wider(names_from = ApptStatusFinal,
@@ -852,6 +1013,9 @@ referrals_summary_site_sent <- referral_vol %>%
          unassigned_perc = round(Pending/ Total,2))
 
 expired_summary_site_sent <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(Class != "Outgoing") %>%
+  filter(Status != "Denied") %>%
   filter(ExpirationInstant < report_run_date) %>%
   group_by(SentBySite, SentBySpecialty, ApptStatusFinal) %>%
   summarise(total = n()) %>%
@@ -1128,6 +1292,8 @@ mshs_sites <- c("MSBI", "MSDMG", "MSH- Ambulatory Care", "MSH-MSDFP",
 # Referrals Data by Month
   referrals_trend_site <- referral_vol %>%
     filter(ReceivedByDept != "*Unspecified") %>%
+    filter(Class != "Outgoing") %>%
+    filter(Status != "Denied") %>%
     # filter(ReceivedBySite %in% mshs_sites) %>%
     filter(StartInstant < report_run_date & StartInstant >= as.Date("2022-09-01", "%Y-%m-%d")) %>%
     group_by(ReceivedBySite, createdMonthYear, ApptStatusFinal) %>%
@@ -1216,7 +1382,8 @@ mshs_sites <- c("MSBI", "MSDMG", "MSH- Ambulatory Care", "MSH-MSDFP",
 # Referrals Data by Month
   referrals_trend_site_sent <- referral_vol %>%
     filter(ReceivedByDept != "*Unspecified") %>%
-    # filter(ReceivedBySite %in% mshs_sites) %>%
+    filter(Class != "Outgoing") %>%
+    filter(Status != "Denied") %>%
     filter(StartInstant < report_run_date & StartInstant >= as.Date("2022-09-01", "%Y-%m-%d")) %>%
     group_by(SentBySite, createdMonthYear, ApptStatusFinal) %>%
     summarise(total_vol = n()) %>%
@@ -1589,9 +1756,11 @@ Patient_MRN = colDef(
 ```{r Referrals without referred-to department, echo = FALSE, warning = FALSE, message = FALSE}
 
 unassigned_referrals_no_dept <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(Class != "Outgoing") %>%
+  filter(Status != "Denied") %>%
   filter(ApptStatusFinal == "Pending") %>%
   filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
-  filter(ReceivedByDept == "*Unspecified") %>%
   group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN,
            SentBySite, SentBySpecialty, SentByDept,
            ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID) %>%
