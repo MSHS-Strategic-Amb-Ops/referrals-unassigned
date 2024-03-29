@@ -565,7 +565,7 @@ unassigned_referrals <- referral_vol %>%
   filter(Status != "Denied") %>%
   filter(str_detect(ProcedureName, "COLONOSCOPY|NUTRITION") == FALSE) %>%
   group_by(ReferralEpicId, ProcedureName, StartInstant, ExpirationInstant, Patient_MRN, 
-           ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID, ReceivedByProvider, Status) %>%
+           ReceivedBySite, ReferredToDepartmentSpecialty, ReceivedByDept, ReceivedByDepID, ReceivedByProvider, Class, Status) %>%
   summarise(total = n()) %>%
   dplyr::select(-total) %>%
   mutate(ExpirationInstant = as.character(ExpirationInstant))
@@ -1480,7 +1480,7 @@ unassigned_output <- unassigned_referrals_appts_merged %>%
            Completed_Appt_ScheduledBy = past_appt_entry)%>%
     mutate(Upcoming_Appt_DTTM = as.character(Upcoming_Appt_DTTM),
            Completed_Appt_DTTM = as.character(Completed_Appt_DTTM)) %>%
-  dplyr::select(StartInstant, ReferralEpicId, Patient_MRN, ProcedureName, ReceivedBySite, ReferredToDepartmentSpecialty, 
+  dplyr::select(StartInstant, ReferralEpicId, Patient_MRN, ProcedureName, Class, Status, ReceivedBySite, ReferredToDepartmentSpecialty, 
                 ReceivedByDept, ReceivedByProvider, Upcoming_Appt_Dept, Upcoming_Appt_DTTM, Upcoming_Appt_Provider, Upcoming_Appt_Name, Upcoming_Appt_ScheduledBy,
                 Completed_Appt_Dept, Completed_Appt_DTTM, Completed_Appt_Provider, Completed_Appt_Name, Completed_Appt_ScheduledBy, type)
 
@@ -1543,6 +1543,14 @@ htmltools::browsable(
     ProcedureName = colDef(
       # footer = "Total",
       name = "Procedure Name"),
+    
+    Class = colDef(
+      # footer = "Total",
+      name = "Referral Class"),
+    
+    Status = colDef(
+      # footer = "Total",
+      name = "Referral Status"),
     
     Upcoming_Appt_Dept = colDef(
       # footer = "Total",
@@ -1619,7 +1627,7 @@ unassigned_output_sent <- unassigned_referrals_sent %>%
            Completed_Appt_ScheduledBy = past_appt_entry)%>%
     mutate(Upcoming_Appt_DTTM = as.character(Upcoming_Appt_DTTM),
            Completed_Appt_DTTM = as.character(Completed_Appt_DTTM)) %>%
-  dplyr::select(StartInstant, ReferralEpicId, Patient_MRN, ProcedureName, 
+  dplyr::select(StartInstant, ReferralEpicId, Patient_MRN, ProcedureName, Class, Status,
                 SentBySite, SentBySpecialty, SentByDept,
                 ReceivedBySite, ReferredToDepartmentSpecialty, 
                 ReceivedByDept, Upcoming_Appt_Dept, Upcoming_Appt_DTTM, Upcoming_Appt_Provider, Upcoming_Appt_Name, Upcoming_Appt_ScheduledBy,
@@ -1696,6 +1704,14 @@ Patient_MRN = colDef(
     ProcedureName = colDef(
       # footer = "Total",
       name = "Procedure Name"),
+
+Class = colDef(
+      # footer = "Total",
+      name = "Referral Class"),
+    
+    Status = colDef(
+      # footer = "Total",
+      name = "Referral Status"),
     
     Upcoming_Appt_Dept = colDef(
       # footer = "Total",
