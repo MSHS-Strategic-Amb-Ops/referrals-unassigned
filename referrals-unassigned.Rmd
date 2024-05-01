@@ -1772,7 +1772,7 @@ Class = colDef(
 ```{r Referrals without referred-to department, echo = FALSE, warning = FALSE, message = FALSE}
 
 unassigned_referrals_no_dept <- referral_vol %>%
-  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(ReceivedByDept == "*Unspecified") %>%
   filter(Class != "Outgoing") %>%
   filter(Status != "Denied") %>%
   filter(ApptStatusFinal == "Pending") %>%
