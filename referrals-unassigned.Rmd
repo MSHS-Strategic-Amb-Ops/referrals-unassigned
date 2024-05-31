@@ -554,7 +554,22 @@ referrals_excl <- c("AMB REF TO ADOL HEALTH HEALTH EDUCATION",
                     "AMB REF TO EXTERNAL DENTAL",
                     "AMB REF TO WIC",
                     "AMB REF TO SPIRITUAL CARE",
-                    "AMB REF TO PEDIATRIC SOCIAL WORK/MENTAL HEALTH")
+                    "AMB REF TO PEDIATRIC SOCIAL WORK/MENTAL HEALTH",
+                    "AMB REF TO SOCIAL WORK",
+                    "AMB REF TO SPECIALTY SOCIAL WORK",
+                    "AMB REF TO FPA SOCIAL WORK",
+                    "AMB REF TO SW MENTAL HEALTH",
+                    "AMB REF TO GMA SOCIAL WORK",
+                    "AMB REF TO PSYCHIATRY (FPA ASTHMA PROGRAM)",
+                    "AMB REF TO PSYCHIATRY",
+                    "AMB REF TO PSYCHOLOGY",
+                    "AMB REF TO PEDS PSYCHOLOGY",
+                    "AMB REF TO PEDS PSYCHIATRY",
+                    "AMB REF TO DUBIN PSYCHOLOGY",
+                    "AMB REF TO MASSAGE THERAPY",
+                    "AMB REF TO WOMEN, INFANT & CHILDREN'S FOOD SUPPLEMENT PROGRAM",
+                    "AMB REF TO PATHOLOGY"
+)
 
 
 
