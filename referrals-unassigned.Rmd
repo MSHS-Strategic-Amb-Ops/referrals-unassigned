@@ -306,7 +306,7 @@ reporting_monthNum <- format(as.Date(report_run_date), "%m")
 
 ```{r Import Referrals Data, echo = FALSE, warning = FALSE, message = FALSE}
 
-path <- "/nfs/data/Applications/Ambulatory/Data_Updated/"
+# path <- "/nfs/data/Applications/Ambulatory/Data_Updated/"
 # saveRDS(referral_vol, paste0(path,"referral_vol.rds"))
 
 # referral_vol <- readRDS(paste0(path,"referral_vol.rds"))
@@ -327,7 +327,7 @@ report_run_date <- Sys.Date()
 conn1 <- dbPool(drv = odbc(), dsn = "Caboodle", timeout = 30)
 
 # Import Referrals+Visit Data --------------------------------------------------
-referrals_conn <- tbl(conn1, "Referrals")
+referrals_conn <- tbl(conn1, "ReferralsDataView")
 referrals_raw <- referrals_conn %>%
   mutate(StartInstant = as.Date(StartInstant)) %>%
   filter(StartInstant >= as.Date("2022-04-01") & StartInstant < report_run_date) %>%
