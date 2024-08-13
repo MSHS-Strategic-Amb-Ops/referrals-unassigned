@@ -317,7 +317,7 @@ reporting_monthNum <- format(as.Date(report_run_date), "%m")
 ```
 
 
-```{r Referrals Data Importing, echo = FALSE, warning = FALSE, message = FALSE}
+```{r Establish Oracle Connection, echo = FALSE, warning = FALSE, message = FALSE}
 
 report_run_date <- Sys.Date()
 
@@ -325,14 +325,134 @@ report_run_date <- Sys.Date()
 # conn1 <- odbcConnect("Caboodle") # Connect to Server
 
 conn1 <- dbPool(drv = odbc(), dsn = "Caboodle", timeout = 30)
+conn2 <- dbPool(drv = odbc(), dsn = "OAO Cloud DB SoYoun", timeout = 30)
+conn3 <- dbConnect(odbc(), 
+                  "Clarity_prod", 
+                  uid = "kweons01" , 
+                  pwd = "kweons01123$")
 
-# Import Referrals+Visit Data --------------------------------------------------
+
+# Caboodle
 referrals_conn <- tbl(conn1, "ReferralsDataView")
+referralFact_conn <- tbl(conn1, "ReferralFact")
+visitFact_conn <- tbl(conn1, "VisitFact")
+
+# Clarity
+referrals_tbl <- tbl(conn3, "REFERRAL")
+referrals_wq_item_tbl <- tbl(conn3, "REFERRAL_WQ_ITEMS")
+referrals_wq_tbl <- tbl(conn3, "REFERRAL_WQ")
+
+```
+
+
+```{r}
+
+
 referrals_raw <- referrals_conn %>%
   mutate(StartInstant = as.Date(StartInstant)) %>%
-  filter(StartInstant >= as.Date("2022-04-01") & StartInstant < report_run_date) %>%
+  filter(StartInstant >= as.Date("2024-01-01") & StartInstant < report_run_date) %>%
+  filter(Status != "Canceled") %>%
+  # group_by(Status, CloseReason, AppointmentStatus) %>%
+  # summarise(total = n()) %>%
+  collect()
+
+
+referrals_reasons <- referrals_merged %>%
+  filter(ProcedureName %!in% referrals_excl) %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  # filter(Status != "Denied") %>%
+  group_by(ReferralEpicId, StartInstant, SentBySite, SentBySpecialty, ReceivedBySite, ReferredToDepartmentSpecialty,  ExpirationInstant,Status, StatusReason, CloseReason, SchedulingStatus) %>%
+  summarise(total = n())
+
+
+qpr_referrals_tbl <- tbl(conn2, "PROD_QPR_REFERRAL")
+qpr_referrals <- qpr_referrals_tbl %>%
+  dplyr::select(REFERRAL_ID, SCHEDULED_REFERRAL, ARRIVED_REFERRAL) %>%
+  collect()
+
+referrals_reasons$SCHEDULED_REFERRAL <- qpr_referrals$SCHEDULED_REFERRAL[match(referrals_reasons$ReferralEpicId, qpr_referrals$REFERRAL_ID)]
+referrals_reasons$ARRIVED_REFERRAL <- qpr_referrals$ARRIVED_REFERRAL[match(referrals_reasons$ReferralEpicId, qpr_referrals$REFERRAL_ID)]
+referrals_reasons$total <- NULL
+
+referrals_reasons_summary <- referrals_reasons %>%
+  filter(StartInstant < as.Date("2024-07-01")) %>%
+  mutate(SCHEDULED_REFERRAL = ifelse(is.na(SCHEDULED_REFERRAL), NA, "Scheduled"),
+         ARRIVED_REFERRAL = ifelse(is.na(ARRIVED_REFERRAL), NA, "Arrived")) %>%
+  group_by(SentBySite, SentBySpecialty, ReceivedBySite, ReferredToDepartmentSpecialty, StartInstant, ExpirationInstant, 
+           SCHEDULED_REFERRAL, ARRIVED_REFERRAL, Status, StatusReason, CloseReason, SchedulingStatus) %>%
+  summarise(total = n())
+
+
+
+require(openxlsx)
+write.xlsx(referrals_reasons_summary, "Referral Status_Jul23_Jul24.xlsx")
+
+
+referral_check <- left_join(referrals_merged, 
+                            qpr_referrals_tbl,
+                            by = c("ReferralKey" = "REFERRAL_ID"),
+                            copy = TRUE)
+
+
+
+
+
+
+referrals_clarity <- referrals_tbl %>%
+   mutate(year = year(ENTRY_DATE),
+         month = month(ENTRY_DATE)) %>%
+  filter(year == 2024) %>%
+  filter(month == 1) %>%
+  collect()
+
+
+referrals_clarity_summary <- referrals_clarity %>%
+  filter(RFL_TYPE_C == "78") %>%
+  group_by(year, month) %>%
+  summarise(total = length(unique(REFERRAL_ID)))
+
+
+
+referrals_caboodle <- referrals_conn %>%
+  mutate(year = year(StartInstant),
+         month = month(StartInstant)) %>%
+  filter(year == 2024) %>%
+  filter(month == 1) %>%
+  collect()
+ 
+referrals_caboodle_summary <- referrals_caboodle %>%
+  group_by(year, month) %>%
+  summarise(total = length(unique(ReferralEpicId)))
+
+cols <- as.data.frame(colnames(referrals))
+
+referrals <- referrals_tbl %>%
+  mutate(year = year(ENTRY_DATE),
+         month = month(ENTRY_DATE)) %>%
+  filter(year >= 2023) %>%
+  group_by(year, month, REFERRAL_ID) %>%
+  summarise(total = n()) %>%
+  collect()
+
+referrals_vol <- referrals_tbl %>%
+  mutate(year = year(ENTRY_DATE),
+         month = month(ENTRY_DATE)) %>%
+  filter(year >= 2023) %>%
+  group_by(year, month) %>%
+  summarise(total = n()) %>%
+```
+
+
+```{r Referrals Data Importing, echo = FALSE, warning = FALSE, message = FALSE}
+
+# Import Referrals+Visit Data --------------------------------------------------
+# referrals_conn <- tbl(conn1, "ReferralsDataView")
+referrals_raw <- referrals_conn %>%
+  mutate(StartInstant = as.Date(StartInstant)) %>%
+  filter(StartInstant >= as.Date("2023-07-01") & StartInstant < report_run_date) %>%
   filter(Status != "Canceled") %>%
   collect()
+
 
 # dep <- referrals_conn %>%
 #   group_by(ReceivedBySite, ReceivedByDept) %>%
@@ -341,20 +461,20 @@ referrals_raw <- referrals_conn %>%
 
 # Import Referrals Data for Addtional Referral Details -------------------------
 # referralFactAll <- sqlQuery(conn1, "SELECT TOP 10* FROM PRDREPORT.FullAccess.ReferralFact")
-referralFact_conn <- tbl(conn1, "ReferralFact")
+# referralFact_conn <- tbl(conn1, "ReferralFact")
 
 referralFact_raw <- referralFact_conn %>%
-  # head(1000) %>%
+  # head(10) %>%
   # collect()
   mutate(StartInstant = as.Date(StartInstant)) %>%
-  filter(StartInstant >= as.Date("2022-04-01") & StartInstant <= report_run_date) %>%
+  filter(StartInstant >= as.Date("2023-07-01") & StartInstant <= report_run_date) %>%
   group_by(ReferralKey, ReferredToDepartmentSpecialty, StartInstant, `_CreationInstant`, `_LastUpdatedInstant`, LastEnteredWorkqueueDateKey_X,
            LastEnteredWorkqueueTimeKey_X, LastEnteredWorkqueueName_X,
            Class, Priority, Redirected, Rejected, TriageRejectionReason, InAnyWorkqueue, StatusReason, SchedulingStatus,
            FirstCallMadeInstant, FirstEncounterCreatedInstant, FirstEncounterInstant, ExpirationInstant,
            WasPatientContactedWithin12Hours_X,
            ProfessionalChargeAmount, ProfessionalChargeEstimate, HospitalChargeEstimate,
-           PrimaryCoverageKey) %>%
+           PrimaryCoverageKey, PendingReason) %>%
   summarise(total = n()) %>%
   # left_join(coverage_payor_plan_tbl, 
   #           by = "COVERAGE_ID",
@@ -368,7 +488,7 @@ referralFact_raw$total <- NULL
 #   filter(StartInstant == as.Date("2022-11-03")) %>%
 #   collect()
 
-visitFact_conn <- tbl(conn1, "VisitFact")
+# visitFact_conn <- tbl(conn1, "VisitFact")
 visitFact_raw <- visitFact_conn %>%
   filter(ReferralKey >0) %>%
   group_by(ReferralKey, AppointmentStatus, AppointmentCreationDateKey, AppointmentCancellationDateKey) %>%
@@ -383,8 +503,6 @@ referrals_merged <- left_join(referrals_raw, subset(referralFact_raw, select = -
 referrals_merged <- referrals_merged %>%
   mutate(SentByDepID = as.character(SentByDepID),
          ReceivedByDepID = as.character(ReceivedByDepID))
-
-
 ```
 
 ```{r Referrals Data Processing, echo = FALSE, warning = FALSE, message = FALSE}
@@ -544,31 +662,43 @@ past_appts <- past_scheduling_raw %>%
 ```{r Unassigned Referrals Received, echo = FALSE, warning = FALSE, message = FALSE}
 
 # Exclude referrals that do not result in appts -------------------------------
-referrals_excl <- c("AMB REF TO ADOL HEALTH HEALTH EDUCATION",
-                    "AMB REF TO ADOL HEALTH PSYCHIATRY",
-                    "AMB REF TO AHC PSYCHOLOGY TESTING",
-                    "AMB REF TO REGISTERED DIETICIAN",
-                    "AMB REF TO EXTERNAL PHYSICAL THERAPY",
-                    "AMB REF TO EXTERNAL OCCUPATIONAL THERAPY",
-                    "AMB REF TO EXTERNAL SPEECH THERAPY",
-                    "AMB REF TO EXTERNAL DENTAL",
-                    "AMB REF TO WIC",
-                    "AMB REF TO SPIRITUAL CARE",
-                    "AMB REF TO PEDIATRIC SOCIAL WORK/MENTAL HEALTH",
-                    "AMB REF TO SOCIAL WORK",
-                    "AMB REF TO SPECIALTY SOCIAL WORK",
-                    "AMB REF TO FPA SOCIAL WORK",
-                    "AMB REF TO SW MENTAL HEALTH",
-                    "AMB REF TO GMA SOCIAL WORK",
-                    "AMB REF TO PSYCHIATRY (FPA ASTHMA PROGRAM)",
-                    "AMB REF TO PSYCHIATRY",
-                    "AMB REF TO PSYCHOLOGY",
-                    "AMB REF TO PEDS PSYCHOLOGY",
-                    "AMB REF TO PEDS PSYCHIATRY",
-                    "AMB REF TO DUBIN PSYCHOLOGY",
-                    "AMB REF TO MASSAGE THERAPY",
-                    "AMB REF TO WOMEN, INFANT & CHILDREN'S FOOD SUPPLEMENT PROGRAM",
-                    "AMB REF TO PATHOLOGY"
+referrals_excl <- c(
+  "AMB REF TO ADOL HEALTH HIV PRE TEST",
+  "AMB REF TO AHC LEGAL HEALTH CLINIC",
+  "AMB REF TO CARE MANAGEMENT",
+  "AMB REF TO COLONOSCOPY (SCREENING)",
+  "AMB REF TO COLONOSCOPY,DIAGNOSTIC",
+  "AMB REF TO CONDITION MANAGEMENT PROGRAM - REMOTE PATIENT MONITORING",
+  "AMB REF TO DUBIN PSYCHOLOGY",
+  "AMB REF TO EXTERNAL DENTAL",
+  "AMB REF TO EXTERNAL EARLY INTERVENTION",
+  "AMB REF TO EXTERNAL OCCUPATIONAL THERAPY",
+  "AMB REF TO EXTERNAL PHYSICAL THERAPY",
+  "AMB REF TO EXTERNAL SPEECH THERAPY",
+  "AMB REF TO FPA SOCIAL WORK",
+  "AMB REF TO GMA SOCIAL WORK",
+  "AMB REF TO IMA BEHAVIORAL HEALTH (DEPRESSION CARE + IMA PSYCH + IMA EVAL)",
+  "AMB REF TO MASSAGE THERAPY",
+  "AMB REF TO MFMA CONSULTATIVE SERVICES",
+  "AMB REF TO MFMA EVALUATION UNIT",
+  "AMB REF TO NUTRITION",
+  "AMB REF TO NUTRITION (FPA ASTHMA PROGRAM)",
+  "AMB REF TO NUTRITION CVI CLINIC",
+  "AMB REF TO PATHOLOGY",
+  "AMB REF TO PEDIATRIC SOCIAL WORK/MENTAL HEALTH",
+  "AMB REF TO PEDS PSYCHIATRY",
+  "AMB REF TO PEDS PSYCHOLOGY",
+  "AMB REF TO PSYCHIATRY",
+  "AMB REF TO PSYCHIATRY (FPA ASTHMA PROGRAM)",
+  "AMB REF TO PSYCHOLOGY",
+  "AMB REF TO REGISTERED DIETICIAN",
+  "AMB REF TO SOCIAL WORK",
+  "AMB REF TO SPECIALTY SOCIAL WORK",
+  "AMB REF TO SPIRITUAL CARE",
+  "AMB REF TO SW MENTAL HEALTH",
+  "AMB REF TO VISITING NURSE SERVICE",
+  "AMB REF TO WOMEN, INFANT & CHILDREN'S FOOD SUPPLEMENT PROGRAM",
+  "AMBULATORY REFERRAL TO ED"
 )
 
 
@@ -721,9 +851,8 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 :::
 ::::
 
-## Referrals Summary {.tabset .tabset-fade .tabset-pills}
-### Referrals Received
-```{r Referrals Received Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+```{r Referrals Received Processing, echo = FALSE, warning = FALSE, message = FALSE}
 
 referrals_summary_site <- referral_vol %>%
   filter(ReceivedByDept != "*Unspecified") %>%
@@ -790,6 +919,85 @@ referrals_summary_site <- merge(referrals_summary_site, unassigned_referrals_pas
 #   mutate(unassigned_appts_perc = round(future_appts/Pending,2)) 
 
 referrals_summary_site[is.na(referrals_summary_site)] <- 0
+
+```
+
+
+```{r Referrals Sent Processing, echo = FALSE, warning = FALSE, message = FALSE}
+
+
+referrals_summary_site_sent <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(Class != "Outgoing") %>%
+  filter(Status != "Denied") %>%
+  filter(ProcedureName %!in% referrals_excl) %>%
+  group_by(SentBySite, SentBySpecialty, ApptStatusFinal) %>%
+  summarise(total = n()) %>%
+  pivot_wider(names_from = ApptStatusFinal,
+              values_from = total,
+              values_fill = 0) %>%
+  adorn_totals("row", "Total") %>%
+  group_by(SentBySite, SentBySpecialty) %>%
+  mutate(Total = sum(across(where(is.numeric)))) %>%
+  mutate(conversion_rate = round((Total - Pending)/Total ,2),
+         completion_rate = round(Arrived/Total, 2),
+         unassigned_perc = round(Pending/ Total,2))
+
+expired_summary_site_sent <- referral_vol %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  filter(Class != "Outgoing") %>%
+  filter(Status != "Denied") %>%
+  filter(ProcedureName %!in% referrals_excl) %>%
+  filter(ExpirationInstant < report_run_date) %>%
+  group_by(SentBySite, SentBySpecialty, ApptStatusFinal) %>%
+  summarise(total = n()) %>%
+  pivot_wider(names_from = ApptStatusFinal,
+              values_from = total,
+              values_fill = 0) %>%
+  adorn_totals("row", "Total") %>%
+  group_by(SentBySite, SentBySpecialty) %>%
+  mutate(Total = sum(across(where(is.numeric)))) %>%
+  dplyr::select(SentBySite, SentBySpecialty, Pending) %>%
+  rename(expired_unassigned = Pending)
+
+referrals_summary_site_sent <- left_join(referrals_summary_site_sent, expired_summary_site_sent)
+referrals_summary_site_sent <- referrals_summary_site_sent %>%
+  mutate(expired_unassigned_perc = round(expired_unassigned/Total,2))
+
+unassigned_referrals_future_appts_summary_sent <- unassigned_referrals_sent %>%
+  filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
+  filter(!is.na(future_dept)) %>%
+  group_by(SentBySite, SentBySpecialty, ReferralEpicId) %>%
+  summarise(total = n()) %>%
+  group_by(SentBySite, SentBySpecialty) %>%
+  summarise(future_appts = n()) %>%
+  adorn_totals("row", "Total") 
+
+referrals_summary_site_sent <- merge(referrals_summary_site_sent, unassigned_referrals_future_appts_summary_sent)
+
+unassigned_referrals_past_appts_summary_sent <- unassigned_referrals_sent %>%
+  filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
+  filter(is.na(future_dept)) %>%
+  filter(!is.na(past_dept)) %>%
+  group_by(SentBySite, SentBySpecialty, ReferralEpicId) %>%
+  summarise(total = n()) %>%
+  group_by(SentBySite, SentBySpecialty) %>%
+  summarise(past_appts = n()) %>%
+  adorn_totals("row", "Total") 
+
+referrals_summary_site_sent <- merge(referrals_summary_site_sent, unassigned_referrals_past_appts_summary_sent)  
+
+# referrals_summary_site <- referrals_summary_site %>%
+#   mutate(unassigned_appts_perc = round(future_appts/Pending,2)) 
+
+referrals_summary_site_sent[is.na(referrals_summary_site_sent)] <- 0
+
+```
+
+
+## Referrals Summary - Site{.tabset .tabset-fade .tabset-pills}
+### Referrals Received
+```{r Referrals Received Output, echo = FALSE, warning = FALSE, message = FALSE}
 
 reactable(
   referrals_summary_site %>%
@@ -1016,72 +1224,6 @@ reactable(
 ### Referrals Sent
 ```{r Referrals Sent Output, echo = FALSE, warning = FALSE, message = FALSE}
 
-referrals_summary_site_sent <- referral_vol %>%
-  filter(ReceivedByDept != "*Unspecified") %>%
-  filter(Class != "Outgoing") %>%
-  filter(Status != "Denied") %>%
-  filter(ProcedureName %!in% referrals_excl) %>%
-  group_by(SentBySite, SentBySpecialty, ApptStatusFinal) %>%
-  summarise(total = n()) %>%
-  pivot_wider(names_from = ApptStatusFinal,
-              values_from = total,
-              values_fill = 0) %>%
-  adorn_totals("row", "Total") %>%
-  group_by(SentBySite, SentBySpecialty) %>%
-  mutate(Total = sum(across(where(is.numeric)))) %>%
-  mutate(conversion_rate = round((Total - Pending)/Total ,2),
-         completion_rate = round(Arrived/Total, 2),
-         unassigned_perc = round(Pending/ Total,2))
-
-expired_summary_site_sent <- referral_vol %>%
-  filter(ReceivedByDept != "*Unspecified") %>%
-  filter(Class != "Outgoing") %>%
-  filter(Status != "Denied") %>%
-  filter(ProcedureName %!in% referrals_excl) %>%
-  filter(ExpirationInstant < report_run_date) %>%
-  group_by(SentBySite, SentBySpecialty, ApptStatusFinal) %>%
-  summarise(total = n()) %>%
-  pivot_wider(names_from = ApptStatusFinal,
-              values_from = total,
-              values_fill = 0) %>%
-  adorn_totals("row", "Total") %>%
-  group_by(SentBySite, SentBySpecialty) %>%
-  mutate(Total = sum(across(where(is.numeric)))) %>%
-  dplyr::select(SentBySite, SentBySpecialty, Pending) %>%
-  rename(expired_unassigned = Pending)
-
-referrals_summary_site_sent <- left_join(referrals_summary_site_sent, expired_summary_site_sent)
-referrals_summary_site_sent <- referrals_summary_site_sent %>%
-  mutate(expired_unassigned_perc = round(expired_unassigned/Total,2))
-
-unassigned_referrals_future_appts_summary_sent <- unassigned_referrals_sent %>%
-  filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
-  filter(!is.na(future_dept)) %>%
-  group_by(SentBySite, SentBySpecialty, ReferralEpicId) %>%
-  summarise(total = n()) %>%
-  group_by(SentBySite, SentBySpecialty) %>%
-  summarise(future_appts = n()) %>%
-  adorn_totals("row", "Total") 
-
-referrals_summary_site_sent <- merge(referrals_summary_site_sent, unassigned_referrals_future_appts_summary_sent)
-
-unassigned_referrals_past_appts_summary_sent <- unassigned_referrals_sent %>%
-  filter(ExpirationInstant > report_run_date) %>% # Remove expired referrals
-  filter(is.na(future_dept)) %>%
-  filter(!is.na(past_dept)) %>%
-  group_by(SentBySite, SentBySpecialty, ReferralEpicId) %>%
-  summarise(total = n()) %>%
-  group_by(SentBySite, SentBySpecialty) %>%
-  summarise(past_appts = n()) %>%
-  adorn_totals("row", "Total") 
-
-referrals_summary_site_sent <- merge(referrals_summary_site_sent, unassigned_referrals_past_appts_summary_sent)  
-
-# referrals_summary_site <- referrals_summary_site %>%
-#   mutate(unassigned_appts_perc = round(future_appts/Pending,2)) 
-
-referrals_summary_site_sent[is.na(referrals_summary_site_sent)] <- 0
-
 reactable(
   referrals_summary_site_sent %>%
     dplyr::select(SentBySite, SentBySpecialty, Total, Arrived, Pending, 
@@ -1303,9 +1445,8 @@ reactable(
 <br/>
 <br/>
 
-## Referrals Trend {.tabset .tabset-fade .tabset-pills}
-### Referrals Received
-```{r Referrals received Trend, echo = FALSE, warning = FALSE, message = FALSE}
+
+```{r Referrals Trend Processing, echo = FALSE, warning = FALSE, message = FALSE}
 
 mshs_sites <- c("MSBI", "MSDMG", "MSH- Ambulatory Care", "MSH-MSDFP",
                          "MSM", "MSUS", "MSW", "Network", "MSQ", "MSSN")
@@ -1342,6 +1483,12 @@ mshs_sites <- c("MSBI", "MSDMG", "MSH- Ambulatory Care", "MSH-MSDFP",
     arrange(createdMonthYear) %>%
     arrange(ReceivedBySite)
   
+```
+
+
+## Referrals Trend - Site{.tabset .tabset-fade .tabset-pills}
+### Referrals Received
+```{r Referrals received Trend, echo = FALSE, warning = FALSE, message = FALSE}
   
   map(unique(referrals_trend_site$ReceivedBySite), function(x){
 highchart() %>%
