@@ -348,98 +348,98 @@ referrals_wq_tbl <- tbl(conn3, "REFERRAL_WQ")
 ```{r}
 
 
-referrals_raw <- referrals_conn %>%
-  mutate(StartInstant = as.Date(StartInstant)) %>%
-  filter(StartInstant >= as.Date("2024-01-01") & StartInstant < report_run_date) %>%
-  filter(Status != "Canceled") %>%
-  # group_by(Status, CloseReason, AppointmentStatus) %>%
-  # summarise(total = n()) %>%
-  collect()
-
-
-referrals_reasons <- referrals_merged %>%
-  filter(ProcedureName %!in% referrals_excl) %>%
-  filter(ReceivedByDept != "*Unspecified") %>%
-  # filter(Status != "Denied") %>%
-  group_by(ReferralEpicId, StartInstant, SentBySite, SentBySpecialty, ReceivedBySite, ReferredToDepartmentSpecialty,  ExpirationInstant,Status, StatusReason, CloseReason, SchedulingStatus) %>%
-  summarise(total = n())
-
-
-qpr_referrals_tbl <- tbl(conn2, "PROD_QPR_REFERRAL")
-qpr_referrals <- qpr_referrals_tbl %>%
-  dplyr::select(REFERRAL_ID, SCHEDULED_REFERRAL, ARRIVED_REFERRAL) %>%
-  collect()
-
-referrals_reasons$SCHEDULED_REFERRAL <- qpr_referrals$SCHEDULED_REFERRAL[match(referrals_reasons$ReferralEpicId, qpr_referrals$REFERRAL_ID)]
-referrals_reasons$ARRIVED_REFERRAL <- qpr_referrals$ARRIVED_REFERRAL[match(referrals_reasons$ReferralEpicId, qpr_referrals$REFERRAL_ID)]
-referrals_reasons$total <- NULL
-
-referrals_reasons_summary <- referrals_reasons %>%
-  filter(StartInstant < as.Date("2024-07-01")) %>%
-  mutate(SCHEDULED_REFERRAL = ifelse(is.na(SCHEDULED_REFERRAL), NA, "Scheduled"),
-         ARRIVED_REFERRAL = ifelse(is.na(ARRIVED_REFERRAL), NA, "Arrived")) %>%
-  group_by(SentBySite, SentBySpecialty, ReceivedBySite, ReferredToDepartmentSpecialty, StartInstant, ExpirationInstant, 
-           SCHEDULED_REFERRAL, ARRIVED_REFERRAL, Status, StatusReason, CloseReason, SchedulingStatus) %>%
-  summarise(total = n())
-
-
-
-require(openxlsx)
-write.xlsx(referrals_reasons_summary, "Referral Status_Jul23_Jul24.xlsx")
-
-
-referral_check <- left_join(referrals_merged, 
-                            qpr_referrals_tbl,
-                            by = c("ReferralKey" = "REFERRAL_ID"),
-                            copy = TRUE)
-
-
-
-
-
-
-referrals_clarity <- referrals_tbl %>%
-   mutate(year = year(ENTRY_DATE),
-         month = month(ENTRY_DATE)) %>%
-  filter(year == 2024) %>%
-  filter(month == 1) %>%
-  collect()
-
-
-referrals_clarity_summary <- referrals_clarity %>%
-  filter(RFL_TYPE_C == "78") %>%
-  group_by(year, month) %>%
-  summarise(total = length(unique(REFERRAL_ID)))
-
-
-
-referrals_caboodle <- referrals_conn %>%
-  mutate(year = year(StartInstant),
-         month = month(StartInstant)) %>%
-  filter(year == 2024) %>%
-  filter(month == 1) %>%
-  collect()
- 
-referrals_caboodle_summary <- referrals_caboodle %>%
-  group_by(year, month) %>%
-  summarise(total = length(unique(ReferralEpicId)))
-
-cols <- as.data.frame(colnames(referrals))
-
-referrals <- referrals_tbl %>%
-  mutate(year = year(ENTRY_DATE),
-         month = month(ENTRY_DATE)) %>%
-  filter(year >= 2023) %>%
-  group_by(year, month, REFERRAL_ID) %>%
-  summarise(total = n()) %>%
-  collect()
-
-referrals_vol <- referrals_tbl %>%
-  mutate(year = year(ENTRY_DATE),
-         month = month(ENTRY_DATE)) %>%
-  filter(year >= 2023) %>%
-  group_by(year, month) %>%
-  summarise(total = n()) %>%
+# referrals_raw <- referrals_conn %>%
+#   mutate(StartInstant = as.Date(StartInstant)) %>%
+#   filter(StartInstant >= as.Date("2024-01-01") & StartInstant < report_run_date) %>%
+#   filter(Status != "Canceled") %>%
+#   # group_by(Status, CloseReason, AppointmentStatus) %>%
+#   # summarise(total = n()) %>%
+#   collect()
+# 
+# 
+# referrals_reasons <- referrals_merged %>%
+#   filter(ProcedureName %!in% referrals_excl) %>%
+#   filter(ReceivedByDept != "*Unspecified") %>%
+#   # filter(Status != "Denied") %>%
+#   group_by(ReferralEpicId, StartInstant, SentBySite, SentBySpecialty, ReceivedBySite, ReferredToDepartmentSpecialty,  ExpirationInstant,Status, StatusReason, CloseReason, SchedulingStatus) %>%
+#   summarise(total = n())
+# 
+# 
+# qpr_referrals_tbl <- tbl(conn2, "PROD_QPR_REFERRAL")
+# qpr_referrals <- qpr_referrals_tbl %>%
+#   dplyr::select(REFERRAL_ID, SCHEDULED_REFERRAL, ARRIVED_REFERRAL) %>%
+#   collect()
+# 
+# referrals_reasons$SCHEDULED_REFERRAL <- qpr_referrals$SCHEDULED_REFERRAL[match(referrals_reasons$ReferralEpicId, qpr_referrals$REFERRAL_ID)]
+# referrals_reasons$ARRIVED_REFERRAL <- qpr_referrals$ARRIVED_REFERRAL[match(referrals_reasons$ReferralEpicId, qpr_referrals$REFERRAL_ID)]
+# referrals_reasons$total <- NULL
+# 
+# referrals_reasons_summary <- referrals_reasons %>%
+#   filter(StartInstant < as.Date("2024-07-01")) %>%
+#   mutate(SCHEDULED_REFERRAL = ifelse(is.na(SCHEDULED_REFERRAL), NA, "Scheduled"),
+#          ARRIVED_REFERRAL = ifelse(is.na(ARRIVED_REFERRAL), NA, "Arrived")) %>%
+#   group_by(SentBySite, SentBySpecialty, ReceivedBySite, ReferredToDepartmentSpecialty, StartInstant, ExpirationInstant, 
+#            SCHEDULED_REFERRAL, ARRIVED_REFERRAL, Status, StatusReason, CloseReason, SchedulingStatus) %>%
+#   summarise(total = n())
+# 
+# 
+# 
+# require(openxlsx)
+# write.xlsx(referrals_reasons_summary, "Referral Status_Jul23_Jul24.xlsx")
+# 
+# 
+# referral_check <- left_join(referrals_merged, 
+#                             qpr_referrals_tbl,
+#                             by = c("ReferralKey" = "REFERRAL_ID"),
+#                             copy = TRUE)
+# 
+# 
+# 
+# 
+# 
+# 
+# referrals_clarity <- referrals_tbl %>%
+#    mutate(year = year(ENTRY_DATE),
+#          month = month(ENTRY_DATE)) %>%
+#   filter(year == 2024) %>%
+#   filter(month == 1) %>%
+#   collect()
+# 
+# 
+# referrals_clarity_summary <- referrals_clarity %>%
+#   filter(RFL_TYPE_C == "78") %>%
+#   group_by(year, month) %>%
+#   summarise(total = length(unique(REFERRAL_ID)))
+# 
+# 
+# 
+# referrals_caboodle <- referrals_conn %>%
+#   mutate(year = year(StartInstant),
+#          month = month(StartInstant)) %>%
+#   filter(year == 2024) %>%
+#   filter(month == 1) %>%
+#   collect()
+#  
+# referrals_caboodle_summary <- referrals_caboodle %>%
+#   group_by(year, month) %>%
+#   summarise(total = length(unique(ReferralEpicId)))
+# 
+# cols <- as.data.frame(colnames(referrals))
+# 
+# referrals <- referrals_tbl %>%
+#   mutate(year = year(ENTRY_DATE),
+#          month = month(ENTRY_DATE)) %>%
+#   filter(year >= 2023) %>%
+#   group_by(year, month, REFERRAL_ID) %>%
+#   summarise(total = n()) %>%
+#   collect()
+# 
+# referrals_vol <- referrals_tbl %>%
+#   mutate(year = year(ENTRY_DATE),
+#          month = month(ENTRY_DATE)) %>%
+#   filter(year >= 2023) %>%
+#   group_by(year, month) %>%
+#   summarise(total = n()) %>%
 ```
 
 
