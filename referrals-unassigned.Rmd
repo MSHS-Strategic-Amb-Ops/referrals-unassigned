@@ -347,7 +347,7 @@ conn3 <- dbConnect(odbc(),
 referrals_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."ReferralsDataView"'))
 
 # referralFact_conn <- tbl(conn1, "ReferralFact")
-referralFact_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."ReferralEventFact"'))
+referralFact_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."ReferralFact"'))
 
 # visitFact_conn <- tbl(conn1, "VisitFact")
 visitFact_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."VisitFact"'))
