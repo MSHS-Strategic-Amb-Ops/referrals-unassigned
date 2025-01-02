@@ -324,7 +324,16 @@ report_run_date <- Sys.Date()
 # Connect to Database ----------------------------------------------------------
 # conn1 <- odbcConnect("Caboodle") # Connect to Server
 
-conn1 <- dbPool(drv = odbc(), dsn = "Caboodle", timeout = 30)
+# conn1 <- dbPool(drv = odbc(), dsn = "Caboodle", timeout = 30)
+conn1 <- dbConnect(odbc(),
+                    Driver = "SQLServer",
+                    # Server = "10.2.42.69", # old server
+                    Server = "datahub-synapse.sql.azuresynapse.net",
+                    database = "datahub_epic_dw",
+                    UID = "MSS_USER",
+                    PWD = "Apple_Bees456$",
+                    Port = 1433)
+
 conn2 <- dbPool(drv = odbc(), dsn = "OAO Cloud DB SoYoun", timeout = 30)
 conn3 <- dbConnect(odbc(), 
                   "Clarity_prod", 
@@ -333,9 +342,15 @@ conn3 <- dbConnect(odbc(),
 
 
 # Caboodle
-referrals_conn <- tbl(conn1, "ReferralsDataView")
-referralFact_conn <- tbl(conn1, "ReferralFact")
-visitFact_conn <- tbl(conn1, "VisitFact")
+# referrals_conn <- tbl(conn1, "ReferralsDataView")
+referrals_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."ReferralsDataView"'))
+
+# referralFact_conn <- tbl(conn1, "ReferralFact")
+referralFact_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."ReferralFact"'))
+
+# visitFact_conn <- tbl(conn1, "VisitFact")
+referralFact_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."VisitFact"'))
+
 
 # Clarity
 referrals_tbl <- tbl(conn3, "REFERRAL")
