@@ -367,7 +367,7 @@ referrals_wq_tbl <- tbl(conn3, "REFERRAL_WQ")
 # referrals_conn <- tbl(conn1, "ReferralsDataView")
 referrals_raw <- referrals_conn %>%
   mutate(StartInstant = as.Date(StartInstant)) %>%
-  filter(StartInstant >= as.Date("2023-07-01") & StartInstant < report_run_date) %>%
+  filter(StartInstant >= as.Date("2024-01-01") & StartInstant < report_run_date) %>%
   filter(Status != "Canceled") %>%
   collect()
 
@@ -383,7 +383,7 @@ referrals_raw <- referrals_conn %>%
 
 referralFact_raw <- referralFact_conn %>%
   mutate(StartInstant = as.Date(StartInstant)) %>%
-  filter(StartInstant >= as.Date("2023-07-01") & StartInstant <= report_run_date) %>%
+  filter(StartInstant >= as.Date("2024-01-01") & StartInstant <= report_run_date) %>%
   group_by(ReferralKey, ReferredToDepartmentSpecialty, StartInstant, `_CreationInstant`, `_LastUpdatedInstant`, LastEnteredWorkqueueDateKey_X,
            LastEnteredWorkqueueTimeKey_X, LastEnteredWorkqueueName_X,
            Class, Priority, Redirected, Rejected, TriageRejectionReason, InAnyWorkqueue, StatusReason, SchedulingStatus,
@@ -748,7 +748,7 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 
 # Ambulatory Unassigned Referrals Report
 *Report Run Date: `r report_run_date`*<br/>
-*Data Date Range: From 2022-04-01 to `r report_run_date - 1`*<br/>
+*Data Date Range: From 2024-01-01 to `r report_run_date - 1`*<br/>
 *Data Source: EPIC Caboodle Referrals Data and Clarity Scheduling Data*<br/>
 *Active unassigned referrals with potential upcoming visits excludes expired referrals and referrals with potential upcoming appointments scheduled for after referral expiration date*<br/>
 *Excludes Nutrition and Colonoscopy referrals*<br/>
