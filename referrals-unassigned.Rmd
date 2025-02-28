@@ -322,8 +322,6 @@ reporting_monthNum <- format(as.Date(report_run_date), "%m")
 report_run_date <- Sys.Date()
 
 # Connect to Database ----------------------------------------------------------
-# conn1 <- odbcConnect("Caboodle") # Connect to Server
-
 # conn1 <- dbPool(drv = odbc(), dsn = "Caboodle", timeout = 30)
 conn1 <- dbConnect(odbc(),
                     Driver = "SQLServer",
@@ -366,11 +364,14 @@ referrals_wq_tbl <- tbl(conn3, "REFERRAL_WQ")
 # Import Referrals+Visit Data --------------------------------------------------
 # referrals_conn <- tbl(conn1, "ReferralsDataView")
 referrals_raw <- referrals_conn %>%
-  mutate(StartInstant = as.Date(StartInstant)) %>%
-  filter(StartInstant >= as.Date("2024-01-01") & StartInstant < report_run_date) %>%
+  mutate(Creation_Date = as.Date(Creation_Date)) %>%
+  filter(Creation_Date >= as.Date("2024-01-01") & Creation_Date < report_run_date) %>%
   filter(Status != "Canceled") %>%
   collect()
 
+check <- referrals_conn %>%
+  filter(ReferralEpicId == "19551562") %>%
+  collect()
 
 # dep <- referrals_conn %>%
 #   group_by(ReceivedBySite, ReceivedByDept) %>%
@@ -382,9 +383,9 @@ referrals_raw <- referrals_conn %>%
 # referralFact_conn <- tbl(conn1, "ReferralFact")
 
 referralFact_raw <- referralFact_conn %>%
-  mutate(StartInstant = as.Date(StartInstant)) %>%
-  filter(StartInstant >= as.Date("2024-01-01") & StartInstant <= report_run_date) %>%
-  group_by(ReferralKey, ReferredToDepartmentSpecialty, StartInstant, `_CreationInstant`, `_LastUpdatedInstant`, LastEnteredWorkqueueDateKey_X,
+  mutate(CreationInstant = as.Date(CreationInstant)) %>%
+  filter(CreationInstant >= as.Date("2024-01-01") & CreationInstant <= report_run_date) %>%
+  group_by(ReferralKey, ReferredToDepartmentSpecialty, CreationInstant, `_CreationInstant`, `_LastUpdatedInstant`, LastEnteredWorkqueueDateKey_X,
            LastEnteredWorkqueueTimeKey_X, LastEnteredWorkqueueName_X,
            Class, Priority, Redirected, Rejected, TriageRejectionReason, InAnyWorkqueue, StatusReason, SchedulingStatus,
            FirstCallMadeInstant, FirstEncounterCreatedInstant, FirstEncounterInstant, ExpirationInstant,
@@ -415,7 +416,7 @@ visitFact_raw <- visitFact_conn %>%
 
 
 # Append Additional Referral Columns -------------------------------------------
-referrals_merged <- left_join(referrals_raw, subset(referralFact_raw, select = -c(StartInstant, Priority)))
+referrals_merged <- left_join(referrals_raw, subset(referralFact_raw, select = -c(Priority)))
 referrals_merged <- referrals_merged %>%
   mutate(SentByDepID = as.character(SentByDepID),
          ReceivedByDepID = as.character(ReceivedByDepID))
@@ -426,11 +427,11 @@ referrals_merged <- referrals_merged %>%
 # Referrals Raw Data Processing ------------------------------------------------
 # Priority Groups =============================================================
 referrals_merged <- referrals_merged %>%
-  mutate(createdWeek = floor_date(as.Date(StartInstant, "%Y-%m-%d"), unit="week", week_start = 7),
-         createdYear = format(as.Date(StartInstant, "%Y-%m-%d"),"%Y"),
-         createdMonNum = as.numeric(format(as.Date(StartInstant, "%Y-%m-%d"),"%m")),
-         createdMonth = format(as.Date(StartInstant, "%Y-%m-%d"),"%B"),
-         createdMonthYear = format(as.Date(StartInstant, "%Y-%m-%d"),"%m-%Y")) %>%
+  mutate(createdWeek = floor_date(as.Date(Creation_Date, "%Y-%m-%d"), unit="week", week_start = 7),
+         createdYear = format(as.Date(Creation_Date, "%Y-%m-%d"),"%Y"),
+         createdMonNum = as.numeric(format(as.Date(Creation_Date, "%Y-%m-%d"),"%m")),
+         createdMonth = format(as.Date(Creation_Date, "%Y-%m-%d"),"%B"),
+         createdMonthYear = format(as.Date(Creation_Date, "%Y-%m-%d"),"%m-%Y")) %>%
   mutate(priority_type = case_when(str_detect(toupper(Priority), "CONVENIENCE") ~ "Patient Convenience"
                                    ,str_detect(toupper(Priority), "2 DAYS") ~ "Within 2 Days"
                                    ,str_detect(toupper(Priority), "1 WEEK") ~ "Within 1 Week"
@@ -464,22 +465,22 @@ referral_vol <- referrals_processed %>%
            ProfessionalChargeEstimate, HospitalChargeEstimate, Redirected, Rejected, TriageRejectionReason, InAnyWorkqueue,
            Patient_MRN, ICD_10_Chosen,
            Status, CloseReason, SchedulingStatus) %>%
-  summarise(total = n()) %>%
+  summarise(total = n()) 
   # mutate(SentBySpecialty = case_when(SentByDept %in% c("MS EPICCARE LINK","MS RYAN CENTER LINK") ~ "ECL"
   #                               # ,str_detect(toupper(SentByDept), "EMERGENCY") ~ "ED"
   #                               # ,SentByDept == "EMERGENCY DEPARTMENT PSYCH" ~ "ED Psych"
   #                               # ,SentByDept == "CPEP PSYCH ED BI" ~ "ED Psych"
   #                               , TRUE ~ SentBySpecialty)) %>%
-  mutate(SentBySite = case_when(SentByDept %in% c("MS RYAN CENTER LINK") ~ "RYAN CENTER"
-                                     # ,SentByDept == "EMERGENCY DEPT BI" ~ "MSBI"
-                                     # ,SentByDept == "EMERGENCY DEPT MORNINGSIDE" ~ "MSM"
-                                     # ,SentByDept == "EMERGENCY DEPT WEST" ~ "MSW"
-                                     # ,SentByDept == "EMERGENCY DEPARTMENT" ~ "MSH"
-                                     # ,SentByDept == "EMERGENCY DEPT QUEENS" ~ "MSQ"
-                                     # ,SentByDept == "EMERGENCY DEPT BI BROOKLYN" ~ "MSB"
-                                     # ,SentByDept == "EMERGENCY DEPARTMENT PSYCH" ~ "MSH"
-                                     # ,SentByDept == "CPEP PSYCH ED BI" ~ "MSBI"
-                                     ,TRUE ~ SentBySite))
+  # mutate(SentBySite = case_when(SentByDept %in% c("MS RYAN CENTER LINK") ~ "RYAN CENTER"
+  #                                    # ,SentByDept == "EMERGENCY DEPT BI" ~ "MSBI"
+  #                                    # ,SentByDept == "EMERGENCY DEPT MORNINGSIDE" ~ "MSM"
+  #                                    # ,SentByDept == "EMERGENCY DEPT WEST" ~ "MSW"
+  #                                    # ,SentByDept == "EMERGENCY DEPARTMENT" ~ "MSH"
+  #                                    # ,SentByDept == "EMERGENCY DEPT QUEENS" ~ "MSQ"
+  #                                    # ,SentByDept == "EMERGENCY DEPT BI BROOKLYN" ~ "MSB"
+  #                                    # ,SentByDept == "EMERGENCY DEPARTMENT PSYCH" ~ "MSH"
+  #                                    # ,SentByDept == "CPEP PSYCH ED BI" ~ "MSBI"
+  #                                    ,TRUE ~ SentBySite))
 
 referral_vol$referral_age <- difftime(report_run_date-1, as.Date(referral_vol$StartInstant, "%Y-%m%-%d"), units = "days")
 
