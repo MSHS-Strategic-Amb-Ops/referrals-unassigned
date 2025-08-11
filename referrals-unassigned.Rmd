@@ -674,6 +674,30 @@ rfl_same_spec <- referrals_processed %>%
   
 ```
 
+```{r}
+
+# referral_summary <- referrals_processed %>%
+#   filter(ReceivedByDept != "*Unspecified") %>%
+#   mutate(start_year = year(Creation_Date),
+#          start_month = month(Creation_Date)) %>%
+#   group_by(start_year, start_month) %>%
+#   summarise(non_converted = n_distinct(ReferralEpicId[is.na(sched_flag)]),
+#             scheduled = n_distinct(ReferralEpicId[sched_flag == "Y"]),
+#             completed = n_distinct(ReferralEpicId[comp_flag == "Y"])) 
+# 
+# 
+# missing_dept_summary2 <- referrals_processed %>%
+#   filter(ReceivedByDept == "*Unspecified") %>%
+#   mutate(start_year = year(Creation_Date),
+#          start_month = month(Creation_Date)) %>%
+#   group_by(start_year, start_month) %>%
+#   summarise(no_dept = n_distinct(ReferralEpicId)) 
+
+
+```
+
+
+
 ```{r Sinai Logo, echo=FALSE, out.width = '30%'}
 knitr::include_graphics("Mount_Sinai_Logo_H.png")
 ```
