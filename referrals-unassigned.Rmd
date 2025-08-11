@@ -711,74 +711,6 @@ summary <- referral_summary %>%
   left_join(referral_same_spec, by = c("start_year", "start_month"))
 
 
-reactable(
-      summary,
-      style = list(fontFamily = 'Calibri',
-                 fontSize = '14px'),
-    defaultColDef = colDef(align = "left", 
-                           headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
-                           headerClass = "bar-sort-header"),
-    highlight = TRUE,
-    # filterable = TRUE,
-    pagination = FALSE,
-    # height = 800,
-    wrap = TRUE,
-    searchable = TRUE,
-    
-    columnGroups = list(
-    colGroup(name = "", columns = c("start_year", "start_month"),
-             headerStyle = list(color = "black", fontSize = "15px")),
-    colGroup(name = "Referrals Received",
-             columns = c("total_referrals", "non_converted", "scheduled", "completed"),
-             headerStyle = list(background = "#210070", color = "white", fontSize = "15px")),
-    colGroup(name = paste0("Referrals without Visits Linked"),
-             columns = c("same_spec", "same_specialty", "same_dept"),
-             headerStyle = list(background = "#210070", color = "white", fontSize = "15px"))
-    ),
-    
-    columns = list(
-    
-    start_year = colDef(
-      # footer = "Total",
-      name = "Year"),
-    
-    start_month = colDef(
-      # footer = "Total",
-      name = "Month"),
-    
-    total_referrals = colDef(
-      format = colFormat(separators = TRUE, digits = 0),
-      name = "Total Referrals Received"),
-    
-    non_converted = colDef(
-      format = colFormat(separators = TRUE, digits = 0),
-      name = "Referrals not Scheduled"),
-    
-    scheduled = colDef(
-      format = colFormat(separators = TRUE, digits = 0),
-      name = "Referrals Scheduled"),
-    
-    completed = colDef(
-      format = colFormat(separators = TRUE, digits = 0),
-      name = "Referrals Completed"),
-    
-    same_spec = colDef(
-      format = colFormat(separators = TRUE, digits = 0),
-      name = "Referrals with Visits Scheduled in the Same Specialty/ Department"),
-    
-    same_specialty = colDef(
-      format = colFormat(separators = TRUE, digits = 0),
-      name = "Referrals with Visits Scheduled in the Same Specialty"),
-    
-    same_dept = colDef(
-      format = colFormat(separators = TRUE, digits = 0),
-      name = "Referral with Visits Scheduled in the Same Department")
-    
-    
-    )
-
-    )
-
 
 ```
 
@@ -1589,6 +1521,80 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 <!-- ``` -->
 <!-- <br/> -->
 <!-- <br/> -->
+
+
+## Referrals Summary
+```{r Referrals and Visits Linked Summary Output, echo = FALSE, warning = FALSE, message = FALSE}
+
+reactable(
+      summary,
+      style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left", 
+                           headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+    searchable = TRUE,
+    
+    columnGroups = list(
+    colGroup(name = "", columns = c("start_year", "start_month"),
+             headerStyle = list(color = "black", fontSize = "15px")),
+    colGroup(name = "Referrals Received",
+             columns = c("total_referrals", "non_converted", "scheduled", "completed"),
+             headerStyle = list(background = "#210070", color = "white", fontSize = "15px")),
+    colGroup(name = paste0("Referrals without Visits Linked"),
+             columns = c("same_spec", "same_specialty", "same_dept"),
+             headerStyle = list(background = "#210070", color = "white", fontSize = "15px"))
+    ),
+    
+    columns = list(
+    
+    start_year = colDef(
+      # footer = "Total",
+      name = "Year"),
+    
+    start_month = colDef(
+      # footer = "Total",
+      name = "Month"),
+    
+    total_referrals = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Total Referrals Received"),
+    
+    non_converted = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referrals not Scheduled"),
+    
+    scheduled = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referrals Scheduled"),
+    
+    completed = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referrals Completed"),
+    
+    same_spec = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referrals with Visits Scheduled in the Same Specialty/ Department"),
+    
+    same_specialty = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referrals with Visits Scheduled in the Same Specialty"),
+    
+    same_dept = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referral with Visits Scheduled in the Same Department")
+    
+    
+    )
+
+    )
+
+```
 
 
 ## Unassigned Referrals {.tabset .tabset-fade .tabset-pills}
