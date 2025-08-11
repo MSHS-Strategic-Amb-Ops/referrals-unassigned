@@ -725,8 +725,6 @@ knitr::include_graphics("Mount_Sinai_Logo_H.png")
 *Report Run Date: `r report_run_date`*<br/>
 *Data Date Range: From 2025-01-01 to `r report_run_date - 1`*<br/>
 *Data Source: EPIC Caboodle Referrals Data and Clarity Scheduling Data*<br/>
-*Active unassigned referrals with potential upcoming visits excludes expired referrals and referrals with potential upcoming appointments scheduled for after referral expiration date*<br/>
-*Excludes Nutrition and Colonoscopy referrals*<br/>
 *Excludes referrals that do not result in appointments (e.g. social work, spiritual care, education, etc)*<br/>
 *Excludes "Outgoing" and "Denied" referrals*<br/>
 
