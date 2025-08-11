@@ -647,6 +647,9 @@ appt_not_linked <- access_raw_tbl %>%
   filter(APPT_MADE_DATE >= as.Date("2025-01-01")) %>%
   dplyr::select(SITE, DEPT_SPECIALTY_NAME, DEPARTMENT_NAME, DEPARTMENT_ID, PROV_NAME_WID, 
                 MRN, PAT_NAME, PAT_ENC_CSN_ID, APPT_ENTRY_USER_NAME_WID, APPT_MADE_DTTM, APPT_DTTM, CONTACT_DATE, PRC_NAME, APPT_STATUS_NAME) %>%
+  mutate(APPT_DTTM = as.character(APPT_DTTM),
+         APPT_MADE_DTTM = as.character(APPT_MADE_DTTM),
+         CONTACT_Data = as.character(CONTACT_DTTM)) %>%
   collect()
 
 
@@ -675,7 +678,7 @@ rfl_same_spec <- referrals_processed %>%
 ```
 
 ```{r}
-
+# 
 # referral_summary <- referrals_processed %>%
 #   filter(ReceivedByDept != "*Unspecified") %>%
 #   mutate(start_year = year(Creation_Date),
@@ -683,7 +686,7 @@ rfl_same_spec <- referrals_processed %>%
 #   group_by(start_year, start_month) %>%
 #   summarise(non_converted = n_distinct(ReferralEpicId[is.na(sched_flag)]),
 #             scheduled = n_distinct(ReferralEpicId[sched_flag == "Y"]),
-#             completed = n_distinct(ReferralEpicId[comp_flag == "Y"])) 
+#             completed = n_distinct(ReferralEpicId[comp_flag == "Y"]))
 # 
 # 
 # missing_dept_summary2 <- referrals_processed %>%
@@ -691,8 +694,16 @@ rfl_same_spec <- referrals_processed %>%
 #   mutate(start_year = year(Creation_Date),
 #          start_month = month(Creation_Date)) %>%
 #   group_by(start_year, start_month) %>%
-#   summarise(no_dept = n_distinct(ReferralEpicId)) 
-
+#   summarise(no_dept = n_distinct(ReferralEpicId))
+# 
+# referral_same_spec <- rfl_same_spec %>%
+#   filter(ReceivedByDept != "*Unspecified") %>%
+#   mutate(start_year = year(Creation_Date),
+#          start_month = month(Creation_Date)) %>%
+#   group_by(start_year, start_month) %>%
+#   summarise(non_converted = n_distinct(ReferralEpicId[is.na(sched_flag)]),
+#             scheduled = n_distinct(ReferralEpicId[sched_flag == "Y"]),
+#             completed = n_distinct(ReferralEpicId[comp_flag == "Y"]))
 
 ```
 
