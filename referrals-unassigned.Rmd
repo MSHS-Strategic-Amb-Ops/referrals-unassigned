@@ -675,39 +675,109 @@ rfl_same_spec <- referrals_processed %>%
   
 ```
 
-```{r}
+```{r Referrals and Visits Linked Summary, echo = FALSE, warning = FALSE, message = FALSE}
 
-# 
-# referral_summary <- referrals_processed %>%
-#   filter(ReceivedByDept != "*Unspecified") %>%
-#   mutate(start_year = year(Creation_Date),
-#          start_month = month(Creation_Date)) %>%
-#   group_by(start_year, start_month) %>%
-#   summarise(non_converted = n_distinct(ReferralEpicId[is.na(sched_flag)]),
-#             scheduled = n_distinct(ReferralEpicId[sched_flag == "Y"]),
-#             completed = n_distinct(ReferralEpicId[comp_flag == "Y"])) %>%
-#   mutate(total_referrals = non_converted + scheduled) %>%
-#   relocate("total_referrals", .before = non_converted)
-# 
-# 
-# 
-# referral_same_spec <- rfl_same_spec %>%
-#   filter(ReceivedByDept != "*Unspecified") %>%
-#   mutate(start_year = year(Creation_Date),
-#          start_month = month(Creation_Date)) %>%
-#   group_by(ReferralEpicId, start_year, start_month) %>%
-#   summarise(num_appts_sched = n_distinct(PAT_ENC_CSN_ID),
-#             num_appts_comp = n_distinct(PAT_ENC_CSN_ID[APPT_STATUS_NAME %in% c("Completed", "Arrived", "Checked In", "Finalized", "Checked Out")])) %>%
-#   mutate(sched_flag = case_when(num_appts_sched > 0 ~ "Y", TRUE ~ "N"),
-#          comp_flag = case_when(num_appts_comp >0 ~ "Y", TRUE ~ "N")) %>%
-#   group_by(start_year, start_month) %>%
-#   summarise(non_converted = n_distinct(ReferralEpicId[is.na(sched_flag)]),
-#             scheduled = n_distinct(ReferralEpicId[sched_flag == "Y"]),
-#             completed = n_distinct(ReferralEpicId[comp_flag == "Y"])) 
-# 
-# 
-# summary <- referral_summary %>%
-#   left_join(referral_same_spec, by = c("start_year", "start_month"))
+
+referral_summary <- referrals_processed %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  mutate(start_year = year(Creation_Date),
+         start_month = month(Creation_Date)) %>%
+  group_by(start_year, start_month) %>%
+  summarise(non_converted = n_distinct(ReferralEpicId[is.na(sched_flag)]),
+            scheduled = n_distinct(ReferralEpicId[sched_flag == "Y"]),
+            completed = n_distinct(ReferralEpicId[comp_flag == "Y"])) %>%
+  mutate(total_referrals = non_converted + scheduled) %>%
+  relocate("total_referrals", .before = non_converted)
+
+
+
+referral_same_spec <- rfl_same_spec %>%
+  filter(ReceivedByDept != "*Unspecified") %>%
+  mutate(start_year = year(Creation_Date),
+         start_month = month(Creation_Date)) %>%
+  # group_by(ReferralEpicId, start_year, start_month, same_specialty, same_dept) %>%
+  # summarise(num_appts_sched = n_distinct(PAT_ENC_CSN_ID),
+  #           num_appts_comp = n_distinct(PAT_ENC_CSN_ID[APPT_STATUS_NAME %in% c("Completed", "Arrived", "Checked In", "Finalized", "Checked Out")])) %>%
+  # mutate(sched_flag = case_when(num_appts_sched > 0 ~ "Y", TRUE ~ "N"),
+  #        comp_flag = case_when(num_appts_comp >0 ~ "Y", TRUE ~ "N")) %>%
+  group_by(start_year, start_month) %>%
+  summarise(same_spec = n(), 
+            same_specialty = n_distinct(ReferralEpicId[same_specialty == "Y" & same_dept == "N"]),
+            same_dept = n_distinct(ReferralEpicId[same_dept == "Y"])) %>%
+  mutate(same_spec = same_specialty + same_dept)
+
+
+summary <- referral_summary %>%
+  left_join(referral_same_spec, by = c("start_year", "start_month"))
+
+
+reactable(
+      summary,
+      style = list(fontFamily = 'Calibri',
+                 fontSize = '14px'),
+    defaultColDef = colDef(align = "left", 
+                           headerStyle = list(background = "#210070", color = "white", fontWeight = "Bold", fontSize = "14px"),
+                           headerClass = "bar-sort-header"),
+    highlight = TRUE,
+    # filterable = TRUE,
+    pagination = FALSE,
+    # height = 800,
+    wrap = TRUE,
+    searchable = TRUE,
+    
+    columnGroups = list(
+    colGroup(name = "", columns = c("start_year", "start_month"),
+             headerStyle = list(color = "black", fontSize = "15px")),
+    colGroup(name = "Referrals Received",
+             columns = c("total_referrals", "non_converted", "scheduled", "completed"),
+             headerStyle = list(background = "#210070", color = "white", fontSize = "15px")),
+    colGroup(name = paste0("Referrals without Visits Linked"),
+             columns = c("same_spec", "same_specialty", "same_dept"),
+             headerStyle = list(background = "#210070", color = "white", fontSize = "15px"))
+    ),
+    
+    columns = list(
+    
+    start_year = colDef(
+      # footer = "Total",
+      name = "Year"),
+    
+    start_month = colDef(
+      # footer = "Total",
+      name = "Month"),
+    
+    total_referrals = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Total Referrals Received"),
+    
+    non_converted = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referrals not Scheduled"),
+    
+    scheduled = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referrals Scheduled"),
+    
+    completed = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referrals Completed"),
+    
+    same_spec = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referrals with Visits Scheduled in the Same Specialty/ Department"),
+    
+    same_specialty = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referrals with Visits Scheduled in the Same Specialty"),
+    
+    same_dept = colDef(
+      format = colFormat(separators = TRUE, digits = 0),
+      name = "Referral with Visits Scheduled in the Same Department")
+    
+    
+    )
+
+    )
 
 
 ```
