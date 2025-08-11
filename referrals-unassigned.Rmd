@@ -668,6 +668,7 @@ rfl_same_spec <- referrals_processed %>%
   mutate(same_spec = case_when(lead_days <= 180 & lead_days >= -180 ~ "Y", TRUE ~ "N")) %>%
   filter(same_spec == "Y") %>%
   arrange(ReferralEpicId, APPT_DTTM) 
+
   
 
 
