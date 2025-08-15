@@ -662,7 +662,7 @@ rfl_same_spec <- referrals_processed %>%
          same_dept = case_when(ReceivedByDepID == DEPARTMENT_ID ~ "Y", TRUE ~ "N")) %>%
   filter(same_specialty == "Y" | same_dept == "Y") %>%
   mutate(lead_days = as.Date(CONTACT_DATE) - as.Date(Creation_Date)) %>%
-  mutate(same_spec = case_when(lead_days <= 180 & lead_days >= -180 ~ "Y", TRUE ~ "N")) %>%
+  mutate(same_spec = case_when(lead_days <= 180 & lead_days >= 0 ~ "Y", TRUE ~ "N")) %>%
   filter(same_spec == "Y") %>%
   arrange(ReferralEpicId, APPT_DTTM) 
 
