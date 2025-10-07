@@ -343,13 +343,13 @@ access_raw_tbl <- tbl(conn3, "MV_DM_PATIENT_ACCESS")
 
 # Caboodle
 # referrals_conn <- tbl(conn1, "ReferralsDataView")
-referrals_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."ReferralsDataView"'))
+caboodle_referrals_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."ReferralsDataView"'))
 
 # referralFact_conn <- tbl(conn1, "ReferralFact")
-referralFact_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."ReferralFact"'))
+caboodle_referralFact_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."ReferralFact"'))
 
 # visitFact_conn <- tbl(conn1, "VisitFact")
-visitFact_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."VisitFact"'))
+caboodle_visitFact_conn <- tbl(conn1, dbplyr::ident_q('"Caboodle"."VisitFact"'))
 
 
 # Clarity
@@ -561,61 +561,66 @@ ref_exclude <- c(
   "MS AMB REF TO MIDI (EXTERNAL)",
   "MSSN SURGICAL BOOKING ORDER",
   "PHX REFERRAL TO LUNG TRANSPLANT",
-  "REFERRAL NUCLEAR STRESS TEST"
+  "REFERRAL NUCLEAR STRESS TEST",
+  "AMB REF TO GMA SOCIAL WORK",
+  "AMB REF TO PAIN MANAGEMENT",
+  "AMB REF TO SW MENTAL HEALTH"
 
 )
 
 ```
 
 
-```{r Referrals- Caboodle ReferralsDataView, echo = FALSE, warning = FALSE, message = FALSE}
+```{r UPDATED Referrals- Caboodle ReferralsDataView, echo = FALSE, warning = FALSE, message = FALSE}
 
-rfl_visits_linked <- visitFact_conn %>%
+## Referrals linked in Visit Fact
+visits_linked <- caboodle_visitFact_conn %>%
   filter(ReferralKey>0) %>%
   group_by(ReferralKey, EncounterEpicCsn, AppointmentStatus, `_LastUpdatedInstant`) %>% 
   summarise(total = n()) %>%
-  group_by(EncounterEpicCsn) %>%
-  filter(`_LastUpdatedInstant` == max(`_LastUpdatedInstant`, na.rm = TRUE)) %>%
   dplyr::select(ReferralKey, EncounterEpicCsn, AppointmentStatus) %>%
   group_by(ReferralKey) %>%
-  summarise(num_appts_sched = n_distinct(EncounterEpicCsn),
-            num_appts_comp = n_distinct(EncounterEpicCsn[AppointmentStatus %in% c("Completed", "Arrived", "Checked In", "Finalized", "Checked Out")])) %>%
-  mutate(sched_flag = case_when(num_appts_sched > 0 ~ "Y", TRUE ~ "N"),
-         comp_flag = case_when(num_appts_comp >0 ~ "Y", TRUE ~ "N")) 
+  summarise(sched_flag_visit = case_when(n_distinct(EncounterEpicCsn[AppointmentStatus %in% c("Completed", "Default", "Scheduled", "Finalized", "No Show",
+                                                                                              # "*Not Applicable", "*Deleted",  "*Unknown", "*Unspecified", "Deleted",  "Pending", "Standby", "Hold",
+                                                                                              "Left without seen", "Canceled",
+                                                                                              "Arrived", "Unschedulable", "Checked In",
+                                                                                              "Confirmed", "Checked Out", "Rescheduled")]) >0 ~ 1, TRUE ~ 0),
+            comp_flag_visit = case_when(n_distinct(EncounterEpicCsn[AppointmentStatus %in% c("Completed", "Arrived", "Checked In", "Checked Out")]) > 0 ~ 1, TRUE ~ 0))
+  # collect()
 
 
-referrals_merged <- referrals_conn %>%
+## Referrals linked in ReferralDataView
+referrals <- caboodle_referrals_conn %>%
+  group_by(ReferralKey, ReferralEpicId) %>%
+  summarise(sched_flag_rfl = case_when(n_distinct(EncounterEpicCsn[AppointmentStatus %in% c("Completed", "Default", "Scheduled", "Finalized", "No Show",
+                                                                                              # "*Not Applicable", "*Deleted",  "*Unknown", "*Unspecified", "Deleted",  "Pending", "Standby", "Hold",
+                                                                                              "Left without seen", "Canceled",
+                                                                                              "Arrived", "Unschedulable", "Checked In",
+                                                                                              "Confirmed", "Checked Out", "Rescheduled")]) >0 ~ 1, TRUE ~ 0),
+            comp_flag_rfl = case_when(n_distinct(EncounterEpicCsn[AppointmentStatus %in% c("Completed", "Arrived", "Checked In", "Checked Out")]) > 0 ~ 1, TRUE ~ 0)) 
+  # collect()
+
+
+
+
+
+referrals_merged <- caboodle_referrals_conn %>%
+  left_join(caboodle_referralFact_conn %>% dplyr::select(ReferralKey, PendingReason)) %>%
+  mutate(Creation_Date = as.Date(Creation_Date)) %>%
+  filter(Creation_Date >= as.Date("2025-01-01") & Creation_Date < report_run_date) %>%
   filter(!(ProcedureName %in% ref_exclude)) %>%
   # filter(ReceivedByDept != "*Unspecified") %>%
   filter(Status != "Denied") %>%
   filter(Class != "Outgoing") %>%
-  dplyr::select(-c("AppointmentCreationDateKey", 
-                   "AppointmentCreationDate",
-                   "AppointmentDateKey",
-                    "AppointmentTimeOfDayKey",
-                    "Appt_Date",
-                    "Appt_Time",
-                    "AppointmentDateTime",
-                    "EncounterEpicCsn",
-                    "Scheduled_in_DeptName",
-                    "Scheduled_in_DeptID",
-                    "AppointmentStatus",
-                    "AppointmentEntryEmployee",
-                    "AppointmentEntryEmployeeName")) %>%
-  distinct() %>%
-  left_join(rfl_visits_linked, 
-            by = c("ReferralKey")) 
+  filter(PendingReason != "Exclude from Physician to Physician Referral Reporting") %>%
+  left_join(referrals) %>%
+  left_join(visits_linked)
 
 
 
 referrals_processed <- referrals_merged %>%
-  mutate(Creation_Date = as.Date(Creation_Date)) %>%
-  filter(Creation_Date >= as.Date("2025-01-01") & Creation_Date < report_run_date) %>%
-  # mutate(createdWeek = floor_date(as.Date(Creation_Date, "%Y-%m-%d"), unit="week", week_start = 7),
-  #        createdYear = format(as.Date(Creation_Date, "%Y-%m-%d"),"%Y"),
-  #        createdMonNum = as.numeric(format(as.Date(Creation_Date, "%Y-%m-%d"),"%m")),
-  #        createdMonth = format(as.Date(Creation_Date, "%Y-%m-%d"),"%B"),
-  #        createdMonthYear = format(as.Date(Creation_Date, "%Y-%m-%d"),"%m-%Y")) %>%
+  mutate(sched_flag = case_when(sched_flag_rfl == 1 | sched_flag_visit == 1 ~ "Y", TRUE ~ "N"),
+         comp_flag = case_when(comp_flag_rfl == 1 | comp_flag_visit == 1 ~ "Y", TRUE ~ "N")) %>%
   mutate(priority_type = case_when(toupper(Priority) %like% "%CONVENIENCE%" ~ "Patient Convenience",
                                    toupper(Priority) %like% "%2 DAYS%" ~ "Within 2 Days",
                                    toupper(Priority) %like% "%1 WEEK%" ~ "Within 1 Week",
@@ -624,7 +629,71 @@ referrals_processed <- referrals_merged %>%
                                    toupper(Priority) %like% "%7-14 Days%" ~ "Within 2 Weeks",
                                    Priority == "Routine" ~ "Routine",
                                    TRUE ~ "Not Specified")) %>%
+  
   collect()
+
+
+```
+
+
+
+```{r Referrals- Caboodle ReferralsDataView, echo = FALSE, warning = FALSE, message = FALSE}
+
+# rfl_visits_linked <- visitFact_conn %>%
+#   filter(ReferralKey>0) %>%
+#   group_by(ReferralKey, EncounterEpicCsn, AppointmentStatus, `_LastUpdatedInstant`) %>% 
+#   summarise(total = n()) %>%
+#   group_by(EncounterEpicCsn) %>%
+#   filter(`_LastUpdatedInstant` == max(`_LastUpdatedInstant`, na.rm = TRUE)) %>%
+#   dplyr::select(ReferralKey, EncounterEpicCsn, AppointmentStatus) %>%
+#   group_by(ReferralKey) %>%
+#   summarise(num_appts_sched = n_distinct(EncounterEpicCsn),
+#             num_appts_comp = n_distinct(EncounterEpicCsn[AppointmentStatus %in% c("Completed", "Arrived", "Checked In", "Finalized", "Checked Out")])) %>%
+#   mutate(sched_flag = case_when(num_appts_sched > 0 ~ "Y", TRUE ~ "N"),
+#          comp_flag = case_when(num_appts_comp >0 ~ "Y", TRUE ~ "N")) 
+# 
+# 
+# referrals_merged <- referrals_conn %>%
+#   filter(!(ProcedureName %in% ref_exclude)) %>%
+#   # filter(ReceivedByDept != "*Unspecified") %>%
+#   filter(Status != "Denied") %>%
+#   filter(Class != "Outgoing") %>%
+#   dplyr::select(-c("AppointmentCreationDateKey", 
+#                    "AppointmentCreationDate",
+#                    "AppointmentDateKey",
+#                     "AppointmentTimeOfDayKey",
+#                     "Appt_Date",
+#                     "Appt_Time",
+#                     "AppointmentDateTime",
+#                     "EncounterEpicCsn",
+#                     "Scheduled_in_DeptName",
+#                     "Scheduled_in_DeptID",
+#                     "AppointmentStatus",
+#                     "AppointmentEntryEmployee",
+#                     "AppointmentEntryEmployeeName")) %>%
+#   distinct() %>%
+#   left_join(rfl_visits_linked, 
+#             by = c("ReferralKey")) 
+# 
+# 
+# 
+# referrals_processed <- referrals_merged %>%
+#   mutate(Creation_Date = as.Date(Creation_Date)) %>%
+#   filter(Creation_Date >= as.Date("2025-01-01") & Creation_Date < report_run_date) %>%
+#   # mutate(createdWeek = floor_date(as.Date(Creation_Date, "%Y-%m-%d"), unit="week", week_start = 7),
+#   #        createdYear = format(as.Date(Creation_Date, "%Y-%m-%d"),"%Y"),
+#   #        createdMonNum = as.numeric(format(as.Date(Creation_Date, "%Y-%m-%d"),"%m")),
+#   #        createdMonth = format(as.Date(Creation_Date, "%Y-%m-%d"),"%B"),
+#   #        createdMonthYear = format(as.Date(Creation_Date, "%Y-%m-%d"),"%m-%Y")) %>%
+#   mutate(priority_type = case_when(toupper(Priority) %like% "%CONVENIENCE%" ~ "Patient Convenience",
+#                                    toupper(Priority) %like% "%2 DAYS%" ~ "Within 2 Days",
+#                                    toupper(Priority) %like% "%1 WEEK%" ~ "Within 1 Week",
+#                                    toupper(Priority) %like% "%2 WEEKS%" ~ "Within 2 Weeks",
+#                                    toupper(Priority) %like% "%3-6 Days%" ~ "Within 1 Week",
+#                                    toupper(Priority) %like% "%7-14 Days%" ~ "Within 2 Weeks",
+#                                    Priority == "Routine" ~ "Routine",
+#                                    TRUE ~ "Not Specified")) %>%
+#   collect()
 
 ```
 
@@ -651,7 +720,7 @@ appt_not_linked <- access_raw_tbl %>%
 
 
 rfl_same_spec <- referrals_processed %>%
-  filter(is.na(sched_flag)) %>%
+  filter(sched_flag == "N") %>%
   dplyr::select(Creation_Date, ReferralEpicId, Patient_MRN, ProcedureName, Class, Status,
                 SentBySite, SentBySpecialty, SentByDept,
                 ReceivedBySite, ReceivedBySpecialtyFromDepDim, ReceivedByDept, ReceivedByDepID,
@@ -665,8 +734,6 @@ rfl_same_spec <- referrals_processed %>%
   mutate(same_spec = case_when(lead_days <= 180 & lead_days >= 0 ~ "Y", TRUE ~ "N")) %>%
   filter(same_spec == "Y") %>%
   arrange(ReferralEpicId, APPT_DTTM) 
-
-  
 
 
 # check <- rfl_same_spec %>% filter(Patient_MRN == "4767887") %>%
@@ -683,7 +750,7 @@ referral_summary <- referrals_processed %>%
   mutate(start_year = year(Creation_Date),
          start_month = month(Creation_Date)) %>%
   group_by(start_year, start_month) %>%
-  summarise(non_converted = n_distinct(ReferralEpicId[is.na(sched_flag)]),
+  summarise(non_converted = n_distinct(ReferralEpicId[sched_flag == "N"]),
             scheduled = n_distinct(ReferralEpicId[sched_flag == "Y"]),
             completed = n_distinct(ReferralEpicId[comp_flag == "Y"])) %>%
   mutate(total_referrals = non_converted + scheduled) %>%
