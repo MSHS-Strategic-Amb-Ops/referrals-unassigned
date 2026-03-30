@@ -632,6 +632,7 @@ referrals_processed <- referrals_merged %>%
   
   collect()
 
+invisible(gc())
 
 ```
 
@@ -740,6 +741,8 @@ rfl_same_spec <- referrals_processed %>%
 #   dplyr::select(ReferralKey, SentByDept, ReceivedBySite, ReceivedByDept, ReceivedByDepID, ReceivedBySpecialty,
 #                 Creation_Date, SITE, DEPT_SPECIALTY_NAME, DEPARTMENT_NAME, APPT_MADE_DTTM, APPT_DTTM, APPT_STATUS_NAME, same_spec, same_specialty, same_dept)
   
+invisible(gc())
+
 ```
 
 ```{r Referrals and Visits Linked Summary, echo = FALSE, warning = FALSE, message = FALSE}
@@ -778,7 +781,7 @@ summary <- referral_summary %>%
   left_join(referral_same_spec, by = c("start_year", "start_month"))
 
 
-
+invisible(gc())
 ```
 
 
@@ -2160,6 +2163,7 @@ htmltools::browsable(
   )
 )
 
+invisible(gc())
 
 ```
 
