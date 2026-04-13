@@ -333,7 +333,7 @@ conn1 <- dbConnect(odbc(),
                     Port = 1433)
 
 
-conn2 <- dbPool(drv = odbc(), dsn = "OAO Cloud DB SoYoun", timeout = 30)
+# conn2 <- dbPool(drv = odbc(), dsn = "OAO Cloud DB SoYoun", timeout = 30)
 conn3 <- dbConnect(odbc(), 
                   "Clarity_prod", 
                   uid = "kweons01" , 
