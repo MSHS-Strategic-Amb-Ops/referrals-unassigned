@@ -607,7 +607,7 @@ referrals <- caboodle_referrals_conn %>%
 referrals_merged <- caboodle_referrals_conn %>%
   left_join(caboodle_referralFact_conn %>% dplyr::select(ReferralKey, PendingReason)) %>%
   mutate(Creation_Date = as.Date(Creation_Date)) %>%
-  filter(Creation_Date >= as.Date("2025-01-01") & Creation_Date < report_run_date) %>%
+  filter(Creation_Date >= as.Date("2026-01-01") & Creation_Date < report_run_date) %>%
   filter(!(ProcedureName %in% ref_exclude)) %>%
   # filter(ReceivedByDept != "*Unspecified") %>%
   filter(Status != "Denied") %>%
@@ -714,7 +714,7 @@ access_raw_tbl <- tbl(conn2, "MV_DM_PATIENT_ACCESS")
 
 appt_not_linked <- access_raw_tbl %>%
   filter(is.na(REFERRAL_ID)) %>%
-  filter(APPT_MADE_DATE >= as.Date("2025-01-01")) %>%
+  filter(APPT_MADE_DATE >= as.Date("2026-01-01")) %>%
   dplyr::select(SITE, DEPT_SPECIALTY_NAME, DEPARTMENT_NAME, DEPARTMENT_ID, PROV_NAME_WID, 
                 MRN, PAT_NAME, PAT_ENC_CSN_ID, APPT_ENTRY_USER_NAME_WID, APPT_MADE_DTTM, APPT_DTTM, CONTACT_DATE, PRC_NAME, APPT_STATUS_NAME) %>%
   collect()
